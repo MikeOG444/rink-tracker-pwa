@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebase";
 import { addActivity, getUserActivities } from "../../services/firestore";
+import { Container, Typography, Button, TextField, Select, MenuItem, Card, CardContent, Avatar, Box, List, ListItem, ListItemText } from "@mui/material";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -32,49 +33,74 @@ const Dashboard = () => {
     await addActivity(user!.uid, activityType, activityDetails);
     setActivityType("");
     setActivityDetails("");
-    fetchActivities(); // Refresh activity list
+    fetchActivities();
   };
 
   return (
-    <div>
-      <h2>Welcome to Your Dashboard</h2>
-      {user ? (
-        <div>
-          <p><strong>Name:</strong> {user.displayName || "No Name"}</p>
-          <p><strong>Email:</strong> {user.email}</p>
-          {user.photoURL && <img src={user.photoURL} alt="User Avatar" width="100" />}
-          
-          <h3>Log a New Activity</h3>
-          <select value={activityType} onChange={(e) => setActivityType(e.target.value)}>
-            <option value="">Select Activity Type</option>
-            <option value="Game">Game</option>
-            <option value="Practice">Practice</option>
-            <option value="Skills Session">Skills Session</option>
-            <option value="Open Skate">Open Skate</option>
-          </select>
-          <input
-            type="text"
-            placeholder="Details"
+    <Container maxWidth="sm">
+      <Box display="flex" flexDirection="column" alignItems="center" mt={4}>
+        <Avatar src={user?.photoURL || ""} sx={{ width: 80, height: 80, mb: 2 }} />
+        <Typography variant="h5" fontWeight="bold">
+          {user?.displayName || "No Name"}
+        </Typography>
+        <Typography variant="subtitle1" color="textSecondary">
+          {user?.email}
+        </Typography>
+      </Box>
+
+      <Card sx={{ mt: 4, p: 2 }}>
+        <CardContent>
+          <Typography variant="h6" fontWeight="bold">
+            Log a New Activity
+          </Typography>
+          <Select
+            fullWidth
+            value={activityType}
+            onChange={(e) => setActivityType(e.target.value)}
+            displayEmpty
+            sx={{ mt: 2 }}
+          >
+            <MenuItem value="" disabled>Select Activity Type</MenuItem>
+            <MenuItem value="Game">Game</MenuItem>
+            <MenuItem value="Practice">Practice</MenuItem>
+            <MenuItem value="Skills Session">Skills Session</MenuItem>
+            <MenuItem value="Open Skate">Open Skate</MenuItem>
+          </Select>
+          <TextField
+            fullWidth
+            label="Activity Details"
             value={activityDetails}
             onChange={(e) => setActivityDetails(e.target.value)}
+            sx={{ mt: 2 }}
           />
-          <button onClick={handleLogActivity}>Log Activity</button>
+          <Button variant="contained" color="primary" onClick={handleLogActivity} sx={{ mt: 2 }}>
+            Log Activity
+          </Button>
+        </CardContent>
+      </Card>
 
-          <h3>Your Activities</h3>
-          <ul>
+      <Card sx={{ mt: 4, p: 2 }}>
+        <CardContent>
+          <Typography variant="h6" fontWeight="bold">
+            Your Activities
+          </Typography>
+          <List>
             {activities.map((activity) => (
-              <li key={activity.id}>
-                <strong>{activity.type}</strong>: {activity.details} - {new Date(activity.timestamp).toLocaleString()}
-              </li>
+              <ListItem key={activity.id}>
+                <ListItemText
+                  primary={activity.type}
+                  secondary={`${activity.details} - ${new Date(activity.timestamp).toLocaleString()}`}
+                />
+              </ListItem>
             ))}
-          </ul>
+          </List>
+        </CardContent>
+      </Card>
 
-          <button onClick={handleLogout}>Logout</button>
-        </div>
-      ) : (
-        <p>Loading...</p>
-      )}
-    </div>
+      <Button variant="outlined" color="secondary" onClick={handleLogout} sx={{ mt: 4 }}>
+        Logout
+      </Button>
+    </Container>
   );
 };
 
