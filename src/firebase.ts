@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { persistentLocalCache, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -16,12 +16,11 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider(); // ✅ Properly exported
 
-// ✅ Use the new recommended Firestore caching method
 export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache(), // 🔥 New Firestore caching approach
+  localCache: persistentLocalCache(),
 });
 
 export const storage = getStorage(app);
-
 export default app;
