@@ -2,19 +2,21 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebase";
-import { addActivity, getUserActivities } from "../../services/firestore";
+import { addActivity, getUserActivities, editActivity, deleteActivity } from "../../services/firestore";
 import {
-  Container, Typography, Button, TextField, Select, MenuItem,
-  Card, CardContent, Avatar, Box, List, ListItem, ListItemText
+  Container, Typography, Button, TextField, Select, MenuItem, 
+  Card, CardContent, Avatar, Box, List, ListItem, ListItemText, IconButton
 } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 const Dashboard = () => {
   const { user } = useAuth();
   const [activityType, setActivityType] = useState("");
   const [activityDetails, setActivityDetails] = useState("");
   const [activities, setActivities] = useState<any[]>([]);
-  const [sortOrder, setSortOrder] = useState("newest"); // Sorting state
-  const [filterType, setFilterType] = useState(""); // Filtering state
+  const [editMode, setEditMode] = useState(false);
+  const [editActivityId, setEditActivityId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -35,23 +37,31 @@ const Dashboard = () => {
 
   const handleLogActivity = async () => {
     if (!activityType || !activityDetails) return;
-    await addActivity(user!.uid, activityType, activityDetails);
+
+    if (editMode && editActivityId) {
+      await editActivity(editActivityId, activityType, activityDetails);
+      setEditMode(false);
+      setEditActivityId(null);
+    } else {
+      await addActivity(user!.uid, activityType, activityDetails);
+    }
+
     setActivityType("");
     setActivityDetails("");
     fetchActivities();
   };
 
-  // Sorting activities
-  const sortedActivities = [...activities].sort((a, b) => {
-    return sortOrder === "newest"
-      ? new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      : new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
-  });
+  const handleEdit = (activity: any) => {
+    setActivityType(activity.type);
+    setActivityDetails(activity.details);
+    setEditActivityId(activity.id);
+    setEditMode(true);
+  };
 
-  // Filtering activities
-  const filteredActivities = filterType
-    ? sortedActivities.filter((activity) => activity.type === filterType)
-    : sortedActivities;
+  const handleDelete = async (activityId: string) => {
+    await deleteActivity(activityId);
+    fetchActivities();
+  };
 
   return (
     <Container maxWidth="sm">
@@ -68,7 +78,7 @@ const Dashboard = () => {
       <Card sx={{ mt: 4, p: 2 }}>
         <CardContent>
           <Typography variant="h6" fontWeight="bold">
-            Log a New Activity
+            {editMode ? "Edit Activity" : "Log a New Activity"}
           </Typography>
           <Select
             fullWidth
@@ -91,7 +101,7 @@ const Dashboard = () => {
             sx={{ mt: 2 }}
           />
           <Button variant="contained" color="primary" onClick={handleLogActivity} sx={{ mt: 2 }}>
-            Log Activity
+            {editMode ? "Update Activity" : "Log Activity"}
           </Button>
         </CardContent>
       </Card>
@@ -101,41 +111,25 @@ const Dashboard = () => {
           <Typography variant="h6" fontWeight="bold">
             Your Activities
           </Typography>
-
-          {/* Sorting & Filtering Controls */}
-          <Select
-            fullWidth
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            sx={{ mt: 2 }}
-          >
-            <MenuItem value="newest">Newest First</MenuItem>
-            <MenuItem value="oldest">Oldest First</MenuItem>
-          </Select>
-
-          <Select
-            fullWidth
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            displayEmpty
-            sx={{ mt: 2 }}
-          >
-            <MenuItem value="">All Activities</MenuItem>
-            <MenuItem value="Game">Games</MenuItem>
-            <MenuItem value="Practice">Practices</MenuItem>
-            <MenuItem value="Skills Session">Skills Sessions</MenuItem>
-            <MenuItem value="Open Skate">Open Skates</MenuItem>
-          </Select>
-
-          {/* Activity List */}
           <List sx={{ mt: 2 }}>
-            {filteredActivities.length === 0 ? (
+            {activities.length === 0 ? (
               <Typography variant="body2" color="textSecondary">
                 No activities found.
               </Typography>
             ) : (
-              filteredActivities.map((activity) => (
-                <ListItem key={activity.id}>
+              activities.map((activity) => (
+                <ListItem key={activity.id}
+                  secondaryAction={
+                    <>
+                      <IconButton onClick={() => handleEdit(activity)}>
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton onClick={() => handleDelete(activity.id)}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </>
+                  }
+                >
                   <ListItemText
                     primary={activity.type}
                     secondary={`${activity.details} - ${new Date(activity.timestamp).toLocaleString()}`}
