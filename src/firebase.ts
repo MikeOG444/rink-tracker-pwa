@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, persistentLocalCache, initializeFirestore } from "firebase/firestore";
+import { persistentLocalCache, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 // Firebase config
@@ -25,4 +25,3 @@ export const db = initializeFirestore(app, {
 export const storage = getStorage(app);
 
 export default app;
-
