@@ -1,73 +1,55 @@
-import { useState, useEffect } from "react";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { useEffect, useState } from "react";
+import { useAuth } from "../../context/AuthContext";
 import { auth } from "../../firebase";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
+import {
+  Container, Typography, Button, TextField, Box, Alert
+} from "@mui/material";
 
 const AuthPage = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState("");
-  const [user, setUser] = useState<any>(null);
 
-  // Monitor auth state
+  // ✅ Redirect user to dashboard if already signed in
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
+    if (user) {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
+  const handleLogin = async () => {
     try {
-      if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
+      await signInWithEmailAndPassword(auth, email, password);
+      navigate("/dashboard"); // ✅ Redirect after login
     } catch (err: any) {
-      setError(err.message);
+      setError("Incorrect email or password. Please try again.");
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleSignup = async () => {
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await createUserWithEmailAndPassword(auth, email, password);
+      navigate("/dashboard"); // ✅ Redirect after signup
     } catch (err: any) {
       setError(err.message);
     }
-  };
-
-  const handleLogout = async () => {
-    await signOut(auth);
   };
 
   return (
-    <div>
-      {user ? (
-        <div>
-          <h2>Welcome, {user.displayName || user.email}!</h2>
-          <button onClick={handleLogout}>Logout</button>
-        </div>
-      ) : (
-        <div>
-          <h2>{isSignUp ? "Sign Up" : "Log In"}</h2>
-          {error && <p style={{ color: "red" }}>{error}</p>}
-          <form onSubmit={handleSubmit}>
-            <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            <button type="submit">{isSignUp ? "Sign Up" : "Log In"}</button>
-          </form>
-          <button onClick={handleGoogleSignIn}>Sign in with Google</button>
-          <button onClick={() => setIsSignUp(!isSignUp)}>
-            {isSignUp ? "Already have an account? Log In" : "Need an account? Sign Up"}
-          </button>
-        </div>
-      )}
-    </div>
+    <Container maxWidth="xs">
+      <Box textAlign="center" mt={5}>
+        <Typography variant="h4" fontWeight="bold">Welcome to Rink Tracker</Typography>
+      </Box>
+      {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+      <TextField fullWidth label="Email" value={email} onChange={(e) => setEmail(e.target.value)} sx={{ mt: 3 }} />
+      <TextField fullWidth label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} sx={{ mt: 2 }} />
+      <Button fullWidth variant="contained" color="primary" onClick={handleLogin} sx={{ mt: 3 }}>Login</Button>
+      <Button fullWidth variant="outlined" color="secondary" onClick={handleSignup} sx={{ mt: 2 }}>Sign Up</Button>
+    </Container>
   );
 };
 
