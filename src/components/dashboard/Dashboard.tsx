@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { signOut } from "firebase/auth";
-import { auth } from "../../firebase";
 import { addActivity, getUserActivities, editActivity, deleteActivity } from "../../services/firestore";
 import {
-  Container, Typography, Button, TextField, Select, MenuItem,
-  Card, CardContent, Avatar, Box, List, IconButton
+  Container, Typography, TextField, Select, MenuItem,
+  Card, CardContent, Avatar, Box, List, IconButton, Button
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -26,30 +24,54 @@ const Dashboard = () => {
 
   const fetchActivities = async () => {
     if (user) {
+      console.log("📡 Fetching latest activities for user:", user.uid);
       const logs = await getUserActivities(user.uid);
-      setActivities(logs);
+  
+      if (logs.length === 0) {
+        console.warn("⚠️ No activities found in Firestore for user:", user.uid);
+      } else {
+        console.log("✅ Activities retrieved and updating state:", logs);
+      }
+  
+      // Force a re-render by explicitly updating state in a new array reference
+      setActivities([...logs]); 
     }
   };
-
-  const handleLogout = async () => {
-    await signOut(auth);
-  };
+  
 
   const handleLogActivity = async () => {
-    if (!activityType || !activityDetails) return;
-
-    if (editMode && editActivityId) {
-      await editActivity(editActivityId, activityType, activityDetails);
-      setEditMode(false);
-      setEditActivityId(null);
-    } else {
-      await addActivity(user!.uid, activityType, activityDetails);
+    console.log("📌 Log Activity button clicked"); // ✅ Check if function executes
+  
+    if (!activityType || !activityDetails) {
+      console.warn("⚠️ Missing activity type or details!");
+      return;
     }
-
-    setActivityType("");
-    setActivityDetails("");
-    fetchActivities();
+  
+    if (!user) {
+      console.error("❌ User is undefined!");
+      return;
+    }
+  
+    try {
+      if (editMode && editActivityId) {
+        console.log("✏️ Editing activity:", editActivityId);
+        await editActivity(editActivityId, activityType, activityDetails);
+        setEditMode(false);
+        setEditActivityId(null);
+      } else {
+        console.log("✅ Adding new activity:", { userId: user.uid, activityType, activityDetails });
+        await addActivity(user.uid, activityType, activityDetails);
+      }
+  
+      setActivityType("");
+      setActivityDetails("");
+      fetchActivities();
+      console.log("🎉 Activity successfully logged!");
+    } catch (error) {
+      console.error("🔥 Error logging activity:", error);
+    }
   };
+  
 
   const handleEdit = (activity: any) => {
     setActivityType(activity.type);
@@ -100,7 +122,13 @@ const Dashboard = () => {
             onChange={(e) => setActivityDetails(e.target.value)}
             sx={{ mt: 2 }}
           />
-          <Button variant="contained" color="primary" onClick={handleLogActivity} sx={{ mt: 2 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            color="primary"
+            onClick={handleLogActivity}
+            sx={{ mt: 2 }}
+          >
             {editMode ? "Update Activity" : "Log Activity"}
           </Button>
         </CardContent>
@@ -112,43 +140,38 @@ const Dashboard = () => {
             Your Activities
           </Typography>
           <List sx={{ mt: 2 }}>
-  {activities.length === 0 ? (
-    <Typography variant="body2" color="textSecondary">
-      No activities found.
-    </Typography>
-  ) : (
-    activities.map((activity) => (
-      <Card key={activity.id} sx={{ mb: 2, p: 2 }}>
-        <CardContent>
-          <Typography variant="h6" fontWeight="bold">
-            {activity.type}
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            {activity.details}
-          </Typography>
-          <Typography variant="caption" color="gray">
-            {new Date(activity.timestamp).toLocaleString()}
-          </Typography>
-          <Box display="flex" justifyContent="flex-end" mt={1}>
-            <IconButton onClick={() => handleEdit(activity)} color="primary">
-              <EditIcon />
-            </IconButton>
-            <IconButton onClick={() => handleDelete(activity.id)} color="error">
-              <DeleteIcon />
-            </IconButton>
-          </Box>
+            {activities.length === 0 ? (
+              <Typography variant="body2" color="textSecondary">
+                No activities found.
+              </Typography>
+            ) : (
+              activities.map((activity) => (
+                <Card key={activity.id} sx={{ mb: 2, p: 2 }}>
+                  <CardContent>
+                    <Typography variant="h6" fontWeight="bold">
+                      {activity.type}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      {activity.details}
+                    </Typography>
+                    <Typography variant="caption" color="gray">
+                      {new Date(activity.timestamp).toLocaleString()}
+                    </Typography>
+                    <Box display="flex" justifyContent="flex-end" mt={1}>
+                      <IconButton onClick={() => handleEdit(activity)} color="primary">
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton onClick={() => handleDelete(activity.id)} color="error">
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </List>
         </CardContent>
       </Card>
-    ))
-  )}
-</List>
-
-        </CardContent>
-      </Card>
-
-      <Button variant="contained" color="error" onClick={handleLogout} sx={{ mt: 4 }}>
-        Logout
-      </Button>
     </Container>
   );
 };
