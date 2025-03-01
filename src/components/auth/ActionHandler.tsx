@@ -24,21 +24,10 @@ const ActionHandler = () => {
       return;
     }
 
-    // Handle different action modes
-    switch (mode) {
-      case 'resetPassword':
-        // Redirect to our password reset page with the oobCode
-        navigate(`/reset-password?oobCode=${oobCode}`);
-        break;
-      case 'verifyEmail':
-        // For email verification, we could handle it here or redirect to a specific page
-        // For now, we'll redirect to the auth page
-        navigate('/auth');
-        break;
-      default:
-        // For any other mode, redirect to the auth page
-        navigate('/auth');
-    }
+    // For all action modes, redirect to the auth page
+    // Firebase will handle the action (password reset, email verification, etc.)
+    // and then redirect to our auth page
+    navigate('/auth');
   }, [location, navigate]);
 
   return (

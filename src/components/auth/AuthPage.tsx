@@ -38,6 +38,19 @@ const AuthPage = () => {
     }
   }, [user, navigate]);
 
+  // Check if the user is returning from a password reset
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const mode = queryParams.get('mode');
+    
+    if (mode === 'resetPassword') {
+      setSuccessMessage("Your password has been reset successfully. You can now log in with your new password.");
+      
+      // Clear the URL parameters to avoid showing the message again on refresh
+      window.history.replaceState({}, document.title, "/auth");
+    }
+  }, []);
+
   const handleLogin = async () => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -102,10 +115,10 @@ const AuthPage = () => {
     }
 
     try {
-      // Send password reset email with the correct continueUrl
-      // Firebase will handle the reset on its page, then redirect to our app
+      // Send password reset email with the continueUrl set to /auth
+      // Firebase will handle the reset on its page, then redirect to our login page
       await sendPasswordResetEmail(auth, email, {
-        url: window.location.origin + "/reset-password"
+        url: window.location.origin + "/auth"
       });
       setSuccessMessage("Password reset email sent! Check your inbox.");
       setError("");
