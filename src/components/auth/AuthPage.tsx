@@ -5,6 +5,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  updateProfile,
 } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import {
@@ -22,7 +23,9 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
 
   // ✅ Redirect user to dashboard if already signed in
   useEffect(() => {
@@ -41,8 +44,17 @@ const AuthPage = () => {
   };
 
   const handleSignup = async () => {
+    if (!fullName.trim()) {
+      setError("Full name is required for sign up.");
+      return;
+    }
+    
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Update the user profile with the full name
+      await updateProfile(userCredential.user, {
+        displayName: fullName
+      });
       navigate("/dashboard"); // ✅ Redirect after signup
     } catch (err: any) {
       setError("Error creating account. Ensure email is valid and password is at least 6 characters.");
@@ -52,6 +64,7 @@ const AuthPage = () => {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
+      // Google sign-in automatically includes the user's name in the profile
       navigate("/dashboard");
     } catch (err) {
       setError("Google sign-in failed. Try again.");
@@ -65,12 +78,22 @@ const AuthPage = () => {
       </Typography>
       {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
       
+      {isSignUp && (
+        <TextField
+          fullWidth
+          label="Full Name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          sx={{ mt: 3, bgcolor: "white", borderRadius: 1 }}
+          required
+        />
+      )}
       <TextField
         fullWidth
         label="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        sx={{ mt: 3, bgcolor: "white", borderRadius: 1 }}
+        sx={{ mt: isSignUp ? 2 : 3, bgcolor: "white", borderRadius: 1 }}
       />
       <TextField
         fullWidth
@@ -80,12 +103,37 @@ const AuthPage = () => {
         onChange={(e) => setPassword(e.target.value)}
         sx={{ mt: 2, bgcolor: "white", borderRadius: 1 }}
       />
-      <Button fullWidth variant="contained" color="primary" onClick={handleLogin} sx={{ mt: 3 }}>
-        Login
-      </Button>
-      <Button fullWidth variant="outlined" color="secondary" onClick={handleSignup} sx={{ mt: 2 }}>
-        Sign Up
-      </Button>
+      {isSignUp ? (
+        <>
+          <Button fullWidth variant="contained" color="primary" onClick={handleSignup} sx={{ mt: 3 }}>
+            Sign Up
+          </Button>
+          <Button 
+            fullWidth 
+            variant="outlined" 
+            color="secondary" 
+            onClick={() => setIsSignUp(false)} 
+            sx={{ mt: 2 }}
+          >
+            Back to Login
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button fullWidth variant="contained" color="primary" onClick={handleLogin} sx={{ mt: 3 }}>
+            Login
+          </Button>
+          <Button 
+            fullWidth 
+            variant="outlined" 
+            color="secondary" 
+            onClick={() => setIsSignUp(true)} 
+            sx={{ mt: 2 }}
+          >
+            Sign Up
+          </Button>
+        </>
+      )}
 
       <Divider sx={{ my: 3, bgcolor: "white" }}>OR</Divider>
 
