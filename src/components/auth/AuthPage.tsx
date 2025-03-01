@@ -102,12 +102,23 @@ const AuthPage = () => {
     }
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetEmail(auth, email, {
+        // Add URL to redirect back to the app's password reset confirmation page
+        url: window.location.origin + "/reset-password",
+        handleCodeInApp: true
+      });
       setSuccessMessage("Password reset email sent! Check your inbox.");
       setError("");
       setIsResetPassword(false);
     } catch (err: any) {
-      setError("Failed to send password reset email. Please check if the email is correct.");
+      console.error("Password reset error:", err);
+      
+      // Check for specific Firebase error codes
+      if (err.code === "auth/user-not-found") {
+        setError("No account exists with this email address. Please sign up or check if the email was entered correctly.");
+      } else {
+        setError("Failed to send password reset email. Please check if the email is correct.");
+      }
     }
   };
 

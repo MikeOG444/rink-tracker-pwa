@@ -6,6 +6,7 @@ import HomePage from "./components/pages/HomePage";
 import AuthPage from "./components/auth/AuthPage";
 import Dashboard from "./components/dashboard/Dashboard";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import PasswordResetConfirm from "./components/auth/PasswordResetConfirm";
 import NavBar from "./components/layout/NavBar.tsx";
 
 const App = () => {
@@ -18,6 +19,7 @@ const App = () => {
           <Route path="/" element={<HomePage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/reset-password" element={<PasswordResetConfirm />} />
         </Routes>
       </Router>
     </ThemeProvider>
