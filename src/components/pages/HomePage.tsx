@@ -11,20 +11,30 @@ const HomePage = () => {
       <Typography variant="h2" fontWeight="bold" color="white">
         Welcome to Rink Tracker
       </Typography>
-      <Typography variant="h5" color="gray" sx={{ mt: 2 }}>
+      <Typography variant="h5" color="#E0E0E0" sx={{ mt: 2 }}>
         Track your hockey journey, log your rink visits, and compete with friends!
       </Typography>
-      <Box sx={{ mt: 4 }}>
+      <Box sx={{ mt: 5 }}>
         {user ? (
           <Button variant="contained" color="primary" onClick={() => navigate("/dashboard")}>
             Go to Dashboard
           </Button>
         ) : (
           <>
-            <Button variant="contained" color="primary" onClick={() => navigate("/auth")} sx={{ mr: 2 }}>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              onClick={() => navigate("/auth")} 
+              sx={{ mr: 2, fontWeight: "bold", px: 3, py: 1 }}
+            >
               Sign In
             </Button>
-            <Button variant="outlined" color="secondary" onClick={() => navigate("/auth")}>
+            <Button 
+              variant="outlined" 
+              color="secondary" 
+              onClick={() => navigate("/auth")}
+              sx={{ fontWeight: "bold", px: 3, py: 1 }}
+            >
               Get Started
             </Button>
           </>

@@ -72,7 +72,14 @@ const AuthPage = () => {
   };
 
   return (
-    <Container maxWidth="xs" sx={{ textAlign: "center", mt: 5, bgcolor: "#1E1E1E", p: 4, borderRadius: 2 }}>
+    <Container maxWidth="xs" sx={{ 
+      textAlign: "center", 
+      mt: 5, 
+      bgcolor: "#252525", // Slightly lighter background for better contrast
+      p: 4, 
+      borderRadius: 2,
+      boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.5)" // Add shadow for depth
+    }}>
       <Typography variant="h4" fontWeight="bold" sx={{ color: "white", mb: 3 }}>
         Welcome to Rink Tracker
       </Typography>
@@ -135,13 +142,21 @@ const AuthPage = () => {
         </>
       )}
 
-      <Divider sx={{ my: 3, bgcolor: "white" }}>OR</Divider>
+      <Divider sx={{ my: 3, bgcolor: "#777777" }}>
+        <Typography color="white" fontWeight="bold">OR</Typography>
+      </Divider>
 
       <Button
         fullWidth
         variant="contained"
         startIcon={<GoogleIcon />}
-        sx={{ bgcolor: "white", color: "black" }}
+        sx={{ 
+          bgcolor: "white", 
+          color: "black",
+          '&:hover': {
+            bgcolor: "#e0e0e0", // Slightly darker on hover for feedback
+          }
+        }}
         onClick={handleGoogleSignIn}
       >
         Sign in with Google

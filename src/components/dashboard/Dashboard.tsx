@@ -4,7 +4,8 @@ import { updateProfile } from "firebase/auth";
 import { addActivity, getUserActivities, editActivity, deleteActivity } from "../../services/firestore";
 import {
   Container, Typography, TextField, Select, MenuItem,
-  Card, CardContent, Avatar, Box, List, IconButton, Button, 
+  Card, CardContent, Avatar, Box, List, IconButton, Button,
+  Dialog, DialogTitle, DialogContent, DialogActions
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -126,6 +127,7 @@ const Dashboard = () => {
   };
 
   const [displayName, setDisplayName] = useState(user?.displayName || "");
+  const [isNameModalOpen, setIsNameModalOpen] = useState(false);
 
   const handleUpdateDisplayName = async () => {
     if (!displayName.trim() || !user) return;
@@ -133,9 +135,15 @@ const Dashboard = () => {
     try {
       await updateProfile(user!, { displayName });
       console.log("✅ Display name updated successfully:", displayName);
+      setIsNameModalOpen(false);
     } catch (error) {
       console.error("❌ Error updating display name:", error);
     }
+  };
+
+  const openNameModal = () => {
+    setDisplayName(user?.displayName || "");
+    setIsNameModalOpen(true);
   };
 
 
@@ -167,33 +175,49 @@ const Dashboard = () => {
             </Typography>
           )}
         </Avatar>
-        <Typography variant="h5" fontWeight="bold">
-          {user?.displayName || "Dirk Dangler"}
-        </Typography>
+        <Box display="flex" alignItems="center">
+          <Typography variant="h5" fontWeight="bold">
+            {user?.displayName || "Dirk Dangler"}
+          </Typography>
+          <IconButton 
+            color="primary" 
+            onClick={openNameModal} 
+            sx={{ ml: 1 }}
+          >
+            <EditIcon />
+          </IconButton>
+        </Box>
 
-        <TextField
-          fullWidth
-          label="Update Display Name"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          sx={{ mt: 2 }}
-        />
-
-        <Button
-          variant="contained"
-          color="primary"
-          sx={{ mt: 2 }}
-          onClick={handleUpdateDisplayName}
-        >
-          Save Name
-        </Button>
-
-        <Typography variant="subtitle1" sx={{ color: "gray" }}>
+        <Typography variant="subtitle1" sx={{ color: "#E0E0E0" }}>
           {user?.email}
         </Typography>
       </Box>
 
-      <Card sx={{ mt: 4, p: 2 }}>
+      {/* Edit Name Modal */}
+      <Dialog open={isNameModalOpen} onClose={() => setIsNameModalOpen(false)}>
+        <DialogTitle>Edit Display Name</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Display Name"
+            type="text"
+            fullWidth
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsNameModalOpen(false)} color="secondary">
+            Cancel
+          </Button>
+          <Button onClick={handleUpdateDisplayName} color="primary">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Card sx={{ mt: 4, p: 2, boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.5)" }}>
         <CardContent>
           <Typography variant="h6" fontWeight="bold">
             {editMode ? "Edit Activity" : "Log a New Activity"}
@@ -230,7 +254,7 @@ const Dashboard = () => {
         </CardContent>
       </Card>
 
-      <Card sx={{ mt: 4, p: 2 }}>
+      <Card sx={{ mt: 4, p: 2, boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.5)" }}>
         <CardContent>
           <Typography variant="h6" fontWeight="bold">
             Your Activities
@@ -242,7 +266,7 @@ const Dashboard = () => {
               </Typography>
             ) : (
               activities.map((activity) => (
-                <Card key={activity.id || activity.timestamp} sx={{ mb: 2, p: 2 }}>
+                <Card key={activity.id || activity.timestamp} sx={{ mb: 2, p: 2, bgcolor: "#3A3A3A" }}>
                   <CardContent>
                     <Typography variant="h6" fontWeight="bold">
                       {activity.type} {activity.offline && " ⏳ (Pending Sync)"}
@@ -250,7 +274,7 @@ const Dashboard = () => {
                     <Typography variant="body2" color="textSecondary">
                       {activity.details}
                     </Typography>
-                    <Typography variant="caption" color="gray">
+                    <Typography variant="caption" color="#E0E0E0">
                       {new Date(activity.timestamp).toLocaleString()}
                     </Typography>
                     <Box display="flex" justifyContent="flex-end" mt={1}>

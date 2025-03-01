@@ -14,14 +14,24 @@ const NavBar = () => {
   };
 
   return (
-    <AppBar position="static" sx={{ bgcolor: "#1E1E1E", p: 1 }}>
+    <AppBar position="static" sx={{ bgcolor: "#252525", p: 1, boxShadow: "0px 2px 10px rgba(0, 0, 0, 0.5)" }}>
       <Toolbar>
         <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: "bold", cursor: "pointer" }} onClick={() => navigate("/")}>
           Rink Tracker
         </Typography>
         {user && (
           <Box>
-            <Button color="inherit" onClick={() => navigate("/dashboard")} sx={{ mr: 2 }}>
+            <Button 
+              color="inherit" 
+              onClick={() => navigate("/dashboard")} 
+              sx={{ 
+                mr: 2, 
+                fontWeight: "bold",
+                '&:hover': {
+                  backgroundColor: "rgba(255, 255, 255, 0.1)"
+                }
+              }}
+            >
               Dashboard
             </Button>
             <Button color="error" variant="contained" onClick={handleLogout}>
