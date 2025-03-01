@@ -7,6 +7,8 @@ import {
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { getOfflineActivities } from "../../services/indexedDB";
+
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -23,21 +25,38 @@ const Dashboard = () => {
   }, [user]);
 
   const fetchActivities = async () => {
-    if (user) {
-      console.log("📡 Fetching latest activities for user:", user.uid);
-      const logs = await getUserActivities(user.uid);
+    if (!user) return;
   
-      if (logs.length === 0) {
-        console.warn("⚠️ No activities found in Firestore for user:", user.uid);
-      } else {
-        console.log("✅ Activities retrieved and updating state:", logs);
-      }
+    console.log("📡 Fetching latest activities for user:", user.uid);
+    
+    // Fetch Firestore activities
+    const onlineActivities = await getUserActivities(user.uid);
   
-      // Force a re-render by explicitly updating state in a new array reference
-      setActivities([...logs]); 
-    }
+    // Fetch IndexedDB offline activities (ensure it's an array)
+    const offlineActivities: any[] = await getOfflineActivities();
+  
+    // Merge both lists (offline activities at the top)
+    const allActivities = [...offlineActivities, ...onlineActivities];
+  
+    // Ensure activities are unique and sorted
+    const uniqueActivities = Array.from(
+      new Map(allActivities.map((activity) => [activity.id, activity])).values()
+    ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  
+    setActivities(uniqueActivities);
+    console.log("✅ Activities updated in state:", uniqueActivities);
   };
   
+  useEffect(() => {
+    window.addEventListener("activitiesUpdated", fetchActivities);
+    return () => window.removeEventListener("activitiesUpdated", fetchActivities);
+  }, []); // Only runs once when the component mounts
+
+  useEffect(() => {
+    if (user) {
+      fetchActivities();
+    }
+  }, [user]);
 
   const handleLogActivity = async () => {
     console.log("📌 Log Activity button clicked"); // ✅ Check if function executes
