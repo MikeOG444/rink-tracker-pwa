@@ -23,6 +23,8 @@ const Dashboard = () => {
     activityType?: string;
     activityDetails?: string;
   }>({});
+  const [filterType, setFilterType] = useState<string>("all");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
   // Listen for network changes
   useEffect(() => {
@@ -335,16 +337,56 @@ const Dashboard = () => {
 
       <Card sx={{ mt: 4, p: 2, boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.5)" }}>
         <CardContent>
-          <Typography variant="h6" fontWeight="bold">
-            Your Activities
-          </Typography>
+          <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap">
+            <Box>
+              <Typography variant="h6" fontWeight="bold">
+                Your Activities
+              </Typography>
+              {activities.length > 0 && (
+                <Typography variant="caption" color="#E0E0E0">
+                  {activities.filter(activity => filterType === "all" || activity.type === filterType).length} 
+                  {filterType !== "all" ? ` ${filterType} activities` : " activities"}
+                </Typography>
+              )}
+            </Box>
+            <Box display="flex" gap={1}>
+              <Select
+                size="small"
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                sx={{ minWidth: 120 }}
+              >
+                <MenuItem value="all">All Types</MenuItem>
+                <MenuItem value="Game">Game</MenuItem>
+                <MenuItem value="Practice">Practice</MenuItem>
+                <MenuItem value="Skills Session">Skills Session</MenuItem>
+                <MenuItem value="Open Skate">Open Skate</MenuItem>
+              </Select>
+              <Select
+                size="small"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as "newest" | "oldest")}
+                sx={{ minWidth: 120 }}
+              >
+                <MenuItem value="newest">Newest First</MenuItem>
+                <MenuItem value="oldest">Oldest First</MenuItem>
+              </Select>
+            </Box>
+          </Box>
           <List sx={{ mt: 2 }}>
             {activities.length === 0 ? (
               <Typography variant="body2" color="textSecondary">
                 No activities found.
               </Typography>
             ) : (
-              activities.map((activity) => (
+              activities
+                .filter(activity => filterType === "all" || activity.type === filterType)
+                .sort((a, b) => {
+                  const dateA = new Date(a.timestamp).getTime();
+                  const dateB = new Date(b.timestamp).getTime();
+                  return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+                })
+                .map((activity) => (
                 <Card key={activity.id || activity.timestamp} sx={{ mb: 2, p: 2, bgcolor: "#3A3A3A" }}>
                   <CardContent>
                     <Typography variant="h6" fontWeight="bold">
