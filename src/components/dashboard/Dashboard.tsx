@@ -144,13 +144,29 @@ const Dashboard = () => {
     setEditMode(true);
   };
 
-  const handleDelete = async (activityId: string) => {
-    await deleteActivity(activityId);
-    fetchActivities();
+  const handleDeleteClick = (activityId: string) => {
+    setActivityToDelete(activityId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (activityToDelete) {
+      await deleteActivity(activityToDelete);
+      fetchActivities();
+      setDeleteConfirmOpen(false);
+      setActivityToDelete(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmOpen(false);
+    setActivityToDelete(null);
   };
 
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [activityToDelete, setActivityToDelete] = useState<string | null>(null);
 
   const handleUpdateDisplayName = async () => {
     if (!displayName.trim() || !user) return;
@@ -236,6 +252,24 @@ const Dashboard = () => {
           </Button>
           <Button onClick={handleUpdateDisplayName} color="primary">
             Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onClose={handleCancelDelete}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this activity?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDelete} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained">
+            Yes, Delete
           </Button>
         </DialogActions>
       </Dialog>
@@ -326,7 +360,7 @@ const Dashboard = () => {
                       <IconButton onClick={() => handleEdit(activity)} color="primary">
                         <EditIcon />
                       </IconButton>
-                      <IconButton onClick={() => handleDelete(activity.id)} color="error">
+                      <IconButton onClick={() => handleDeleteClick(activity.id)} color="error">
                         <DeleteIcon />
                       </IconButton>
                     </Box>
