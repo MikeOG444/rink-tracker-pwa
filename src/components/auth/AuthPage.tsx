@@ -91,7 +91,17 @@ const AuthPage = () => {
           label="Full Name"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          sx={{ mt: 3, bgcolor: "white", borderRadius: 1 }}
+          sx={{ 
+            mt: 3, 
+            bgcolor: "white", 
+            borderRadius: 1,
+            '& .MuiInputBase-input': {
+              color: '#000000', // Black text for high contrast
+            }
+          }}
+          InputProps={{
+            style: { color: '#000000' } // Ensure text is black
+          }}
           required
         />
       )}
@@ -100,7 +110,17 @@ const AuthPage = () => {
         label="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        sx={{ mt: isSignUp ? 2 : 3, bgcolor: "white", borderRadius: 1 }}
+        sx={{ 
+          mt: isSignUp ? 2 : 3, 
+          bgcolor: "white", 
+          borderRadius: 1,
+          '& .MuiInputBase-input': {
+            color: '#000000', // Black text for high contrast
+          }
+        }}
+        InputProps={{
+          style: { color: '#000000' } // Ensure text is black
+        }}
       />
       <TextField
         fullWidth
@@ -108,7 +128,17 @@ const AuthPage = () => {
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        sx={{ mt: 2, bgcolor: "white", borderRadius: 1 }}
+        sx={{ 
+          mt: 2, 
+          bgcolor: "white", 
+          borderRadius: 1,
+          '& .MuiInputBase-input': {
+            color: '#000000', // Black text for high contrast
+          }
+        }}
+        InputProps={{
+          style: { color: '#000000' } // Ensure text is black
+        }}
       />
       {isSignUp ? (
         <>
