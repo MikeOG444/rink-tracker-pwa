@@ -6,6 +6,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   updateProfile,
+  sendPasswordResetEmail,
+  sendEmailVerification,
 } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import {
@@ -25,7 +27,9 @@ const AuthPage = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isResetPassword, setIsResetPassword] = useState(false);
 
   // ✅ Redirect user to dashboard if already signed in
   useEffect(() => {
@@ -36,7 +40,19 @@ const AuthPage = () => {
 
   const handleLogin = async () => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Check if email is verified
+      if (!userCredential.user.emailVerified) {
+        setError("Please verify your email before logging in. Check your inbox for a verification link.");
+        // Send another verification email if needed
+        await sendEmailVerification(userCredential.user);
+        setSuccessMessage("A new verification email has been sent to your inbox.");
+        // Sign out the user since they're not verified
+        await auth.signOut();
+        return;
+      }
+      
       navigate("/dashboard"); // ✅ Redirect after login
     } catch (err: any) {
       setError("Incorrect email or password. Please try again.");
@@ -55,7 +71,15 @@ const AuthPage = () => {
       await updateProfile(userCredential.user, {
         displayName: fullName
       });
-      navigate("/dashboard"); // ✅ Redirect after signup
+      
+      // Send email verification
+      await sendEmailVerification(userCredential.user);
+      
+      setSuccessMessage("Account created! Please check your email to verify your account before logging in.");
+      setIsSignUp(false); // Return to login screen
+      setEmail("");
+      setPassword("");
+      setFullName("");
     } catch (err: any) {
       setError("Error creating account. Ensure email is valid and password is at least 6 characters.");
     }
@@ -68,6 +92,22 @@ const AuthPage = () => {
       navigate("/dashboard");
     } catch (err) {
       setError("Google sign-in failed. Try again.");
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      setError("Please enter your email address to reset your password.");
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setSuccessMessage("Password reset email sent! Check your inbox.");
+      setError("");
+      setIsResetPassword(false);
+    } catch (err: any) {
+      setError("Failed to send password reset email. Please check if the email is correct.");
     }
   };
 
@@ -84,8 +124,66 @@ const AuthPage = () => {
         Welcome to Rink Tracker
       </Typography>
       {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+      {successMessage && <Alert severity="success" sx={{ mt: 2 }}>{successMessage}</Alert>}
       
-      {isSignUp && (
+      {isResetPassword ? (
+        <>
+          <Typography variant="h6" color="white" sx={{ mb: 2 }}>
+            Reset Your Password
+          </Typography>
+          <Typography variant="body2" color="#E0E0E0" sx={{ mb: 2 }}>
+            Enter your email address and we'll send you a link to reset your password.
+          </Typography>
+          <TextField
+            fullWidth
+            label="Email"
+            placeholder="Enter your email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            sx={{ 
+              bgcolor: "white", 
+              borderRadius: 1,
+              '& .MuiInputBase-input': {
+                color: '#000000',
+              },
+              '& .MuiInputLabel-root': {
+                color: '#757575',
+              },
+              '& .MuiInputLabel-shrink': {
+                transform: 'translate(14px, -9px) scale(0.75)',
+                backgroundColor: 'white',
+                padding: '0 5px',
+              }
+            }}
+            InputProps={{
+              style: { color: '#000000' },
+              placeholder: 'Enter your email address'
+            }}
+          />
+          <Button 
+            fullWidth 
+            variant="contained" 
+            color="primary" 
+            onClick={handleResetPassword} 
+            sx={{ mt: 3 }}
+          >
+            Send Reset Link
+          </Button>
+          <Button 
+            fullWidth 
+            variant="outlined" 
+            color="secondary" 
+            onClick={() => {
+              setIsResetPassword(false);
+              setError("");
+              setSuccessMessage("");
+            }} 
+            sx={{ mt: 2 }}
+          >
+            Back to Login
+          </Button>
+        </>
+      ) : isSignUp && (
         <TextField
           fullWidth
           label="Full Name"
@@ -197,13 +295,16 @@ const AuthPage = () => {
             fullWidth 
             variant="outlined" 
             color="secondary" 
-            onClick={() => setIsSignUp(false)} 
+            onClick={() => {
+              setIsSignUp(false);
+              setError("");
+            }} 
             sx={{ mt: 2 }}
           >
             Back to Login
           </Button>
         </>
-      ) : (
+      ) : !isResetPassword && (
         <>
           <Button fullWidth variant="contained" color="primary" onClick={handleLogin} sx={{ mt: 3 }}>
             Login
@@ -212,11 +313,32 @@ const AuthPage = () => {
             fullWidth 
             variant="outlined" 
             color="secondary" 
-            onClick={() => setIsSignUp(true)} 
+            onClick={() => {
+              setIsSignUp(true);
+              setError("");
+            }} 
             sx={{ mt: 2 }}
           >
             Sign Up
           </Button>
+          <Typography 
+            variant="body2" 
+            color="#1E90FF" 
+            sx={{ 
+              mt: 1, 
+              cursor: "pointer",
+              "&:hover": {
+                textDecoration: "underline"
+              }
+            }}
+            onClick={() => {
+              setIsResetPassword(true);
+              setError("");
+              setSuccessMessage("");
+            }}
+          >
+            Forgot Password?
+          </Typography>
         </>
       )}
 
