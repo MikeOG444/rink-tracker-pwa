@@ -16,8 +16,7 @@ const Dashboard = () => {
   const [activityType, setActivityType] = useState("");
   const [activityDetails, setActivityDetails] = useState("");
   const [activities, setActivities] = useState<any[]>([]);
-  const [editMode, setEditMode] = useState(false);
-  const [editActivityId, setEditActivityId] = useState<string | null>(null);
+  const [editingActivity, setEditingActivity] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [validationErrors, setValidationErrors] = useState<{
     activityType?: string;
@@ -120,16 +119,9 @@ const Dashboard = () => {
     }
 
     try {
-      if (editMode && editActivityId) {
-        console.log("✏️ Editing activity:", editActivityId);
-        await editActivity(editActivityId, activityType, activityDetails);
-        setEditMode(false);
-        setEditActivityId(null);
-      } else {
-        console.log("✅ Adding new activity:", { userId: user.uid, activityType, activityDetails });
-        await addActivity(user.uid, activityType, activityDetails);
-      }
-
+      console.log("✅ Adding new activity:", { userId: user.uid, activityType, activityDetails });
+      await addActivity(user.uid, activityType, activityDetails);
+      
       setActivityType("");
       setActivityDetails("");
       fetchActivities();
@@ -139,11 +131,31 @@ const Dashboard = () => {
     }
   };
 
+  // This function starts editing an activity in-place
   const handleEdit = (activity: any) => {
-    setActivityType(activity.type);
-    setActivityDetails(activity.details);
-    setEditActivityId(activity.id);
-    setEditMode(true);
+    setEditingActivity(activity.id);
+  };
+
+  // This function saves the edited activity
+  const handleSaveEdit = async (activityId: string, newType: string, newDetails: string) => {
+    if (!user) {
+      console.error("❌ User is undefined!");
+      return;
+    }
+
+    try {
+      console.log("✏️ Saving edited activity:", activityId);
+      await editActivity(activityId, newType, newDetails);
+      setEditingActivity(null);
+      fetchActivities();
+    } catch (error) {
+      console.error("🔥 Error saving activity:", error);
+    }
+  };
+
+  // This function cancels editing
+  const handleCancelEdit = () => {
+    setEditingActivity(null);
   };
 
   const handleDeleteClick = (activityId: string) => {
@@ -279,7 +291,7 @@ const Dashboard = () => {
       <Card sx={{ mt: 4, p: 2, boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.5)" }}>
         <CardContent>
           <Typography variant="h6" fontWeight="bold">
-            {editMode ? "Edit Activity" : "Log a New Activity"}
+            Log a New Activity
           </Typography>
           <Select
             fullWidth
@@ -330,7 +342,7 @@ const Dashboard = () => {
             onClick={handleLogActivity}
             sx={{ mt: 2 }}
           >
-            {editMode ? "Update Activity" : "Log Activity"}
+            Log Activity
           </Button>
         </CardContent>
       </Card>
@@ -387,25 +399,89 @@ const Dashboard = () => {
                   return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
                 })
                 .map((activity) => (
-                <Card key={activity.id || activity.timestamp} sx={{ mb: 2, p: 2, bgcolor: "#3A3A3A" }}>
+                <Card 
+                  key={activity.id || activity.timestamp} 
+                  sx={{ 
+                    mb: 2, 
+                    p: 2, 
+                    bgcolor: editingActivity === activity.id ? "#2A4D69" : "#3A3A3A", // Highlight when editing
+                    transition: "background-color 0.3s ease"
+                  }}
+                >
                   <CardContent>
-                    <Typography variant="h6" fontWeight="bold">
-                      {activity.type} {activity.offline && " ⏳ (Pending Sync)"}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary">
-                      {activity.details}
-                    </Typography>
-                    <Typography variant="caption" color="#E0E0E0">
-                      {new Date(activity.timestamp).toLocaleString()}
-                    </Typography>
-                    <Box display="flex" justifyContent="flex-end" mt={1}>
-                      <IconButton onClick={() => handleEdit(activity)} color="primary">
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton onClick={() => handleDeleteClick(activity.id)} color="error">
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
+                    {editingActivity === activity.id ? (
+                      // Editing mode
+                      <>
+                        <Select
+                          fullWidth
+                          value={activity.type}
+                          onChange={(e) => {
+                            // Update activity type in local state
+                            const updatedActivities = activities.map(a => 
+                              a.id === activity.id ? { ...a, type: e.target.value } : a
+                            );
+                            setActivities(updatedActivities);
+                          }}
+                          sx={{ mb: 2 }}
+                        >
+                          <MenuItem value="Game">Game</MenuItem>
+                          <MenuItem value="Practice">Practice</MenuItem>
+                          <MenuItem value="Skills Session">Skills Session</MenuItem>
+                          <MenuItem value="Open Skate">Open Skate</MenuItem>
+                        </Select>
+                        <TextField
+                          fullWidth
+                          multiline
+                          label="Activity Details"
+                          value={activity.details}
+                          onChange={(e) => {
+                            // Update activity details in local state
+                            const updatedActivities = activities.map(a => 
+                              a.id === activity.id ? { ...a, details: e.target.value } : a
+                            );
+                            setActivities(updatedActivities);
+                          }}
+                          sx={{ mb: 2 }}
+                        />
+                        <Box display="flex" justifyContent="flex-end" gap={1}>
+                          <Button 
+                            variant="outlined" 
+                            color="secondary"
+                            onClick={handleCancelEdit}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            variant="contained" 
+                            color="primary"
+                            onClick={() => handleSaveEdit(activity.id, activity.type, activity.details)}
+                          >
+                            Save
+                          </Button>
+                        </Box>
+                      </>
+                    ) : (
+                      // View mode
+                      <>
+                        <Typography variant="h6" fontWeight="bold">
+                          {activity.type} {activity.offline && " ⏳ (Pending Sync)"}
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                          {activity.details}
+                        </Typography>
+                        <Typography variant="caption" color="#E0E0E0">
+                          {new Date(activity.timestamp).toLocaleString()}
+                        </Typography>
+                        <Box display="flex" justifyContent="flex-end" mt={1}>
+                          <IconButton onClick={() => handleEdit(activity)} color="primary">
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton onClick={() => handleDeleteClick(activity.id)} color="error">
+                            <DeleteIcon />
+                          </IconButton>
+                        </Box>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               ))
