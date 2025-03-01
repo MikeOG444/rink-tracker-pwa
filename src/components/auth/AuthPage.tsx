@@ -64,6 +64,7 @@ const AuthPage = () => {
         Welcome to Rink Tracker
       </Typography>
       {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+      
       <TextField
         fullWidth
         label="Email"

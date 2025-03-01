@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { updateProfile } from "firebase/auth";
 import { addActivity, getUserActivities, editActivity, deleteActivity } from "../../services/firestore";
 import {
   Container, Typography, TextField, Select, MenuItem,
-  Card, CardContent, Avatar, Box, List, IconButton, Button
+  Card, CardContent, Avatar, Box, List, IconButton, Button, 
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -37,34 +38,34 @@ const Dashboard = () => {
 
   const fetchActivities = async () => {
     if (!user) return;
-  
+
     console.log("📡 Fetching latest activities for user:", user.uid);
-  
+
     // Fetch Firestore activities
     const onlineActivities = await getUserActivities(user.uid);
-  
+
     // Fetch IndexedDB offline activities
     const offlineActivities: any[] = await getOfflineActivities();
-  
+
     // ✅ Ensure offline activities have a pending sync flag
     const offlineActivitiesWithFlag = offlineActivities.map(activity => ({
       ...activity,
       offline: true, // Mark as waiting for sync
       id: `offline-${activity.timestamp}`, // Unique ID for offline items
     }));
-  
+
     // ✅ Merge online and offline activities
     const allActivities = [...offlineActivitiesWithFlag, ...onlineActivities];
-  
+
     // ✅ Ensure activities are sorted and unique
     const uniqueActivities = Array.from(
       new Map(allActivities.map((activity) => [activity.id, activity])).values()
     ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  
+
     setActivities(uniqueActivities);
     console.log("✅ Activities updated in state:", uniqueActivities);
   };
-  
+
 
   // Auto-refresh when offline activities sync
   useEffect(() => {
@@ -124,6 +125,20 @@ const Dashboard = () => {
     fetchActivities();
   };
 
+  const [displayName, setDisplayName] = useState(user?.displayName || "");
+
+  const handleUpdateDisplayName = async () => {
+    if (!displayName.trim() || !user) return;
+
+    try {
+      await updateProfile(user!, { displayName });
+      console.log("✅ Display name updated successfully:", displayName);
+    } catch (error) {
+      console.error("❌ Error updating display name:", error);
+    }
+  };
+
+
   return (
     <Container maxWidth="sm">
       {/* ✅ Offline Mode Banner */}
@@ -137,11 +152,43 @@ const Dashboard = () => {
       )}
 
       <Box display="flex" flexDirection="column" alignItems="center" mt={4}>
-        <Avatar src={user?.photoURL || ""} sx={{ width: 80, height: 80, mb: 2 }} />
+        <Avatar
+          src={user?.photoURL || "/default-avatar.png"} // Fallback image if no photoURL
+          sx={{
+            width: 80,
+            height: 80,
+            mb: 2,
+            bgcolor: "primary.main", // Adds contrast for better visibility
+          }}
+        >
+          {!user?.photoURL && (
+            <Typography variant="h5" color="white">
+              {user?.displayName ? user.displayName.charAt(0).toUpperCase() : "?"}
+            </Typography>
+          )}
+        </Avatar>
         <Typography variant="h5" fontWeight="bold">
-          {user?.displayName || "No Name"}
+          {user?.displayName || "Dirk Dangler"}
         </Typography>
-        <Typography variant="subtitle1" color="textSecondary">
+
+        <TextField
+          fullWidth
+          label="Update Display Name"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          sx={{ mt: 2 }}
+        />
+
+        <Button
+          variant="contained"
+          color="primary"
+          sx={{ mt: 2 }}
+          onClick={handleUpdateDisplayName}
+        >
+          Save Name
+        </Button>
+
+        <Typography variant="subtitle1" sx={{ color: "gray" }}>
           {user?.email}
         </Typography>
       </Box>
