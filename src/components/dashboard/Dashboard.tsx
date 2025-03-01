@@ -19,6 +19,10 @@ const Dashboard = () => {
   const [editMode, setEditMode] = useState(false);
   const [editActivityId, setEditActivityId] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [validationErrors, setValidationErrors] = useState<{
+    activityType?: string;
+    activityDetails?: string;
+  }>({});
 
   // Listen for network changes
   useEffect(() => {
@@ -83,9 +87,28 @@ const Dashboard = () => {
 
   const handleLogActivity = async () => {
     console.log("📌 Log Activity button clicked");
-
-    if (!activityType || !activityDetails) {
-      console.warn("⚠️ Missing activity type or details!");
+    
+    // Reset validation errors
+    setValidationErrors({});
+    
+    // Validate inputs
+    const errors: {
+      activityType?: string;
+      activityDetails?: string;
+    } = {};
+    
+    if (!activityType) {
+      errors.activityType = "Please select an activity type";
+    }
+    
+    if (!activityDetails) {
+      errors.activityDetails = "Please enter activity details";
+    }
+    
+    // If there are validation errors, show them and stop
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      console.warn("⚠️ Validation errors:", errors);
       return;
     }
 
@@ -225,22 +248,44 @@ const Dashboard = () => {
           <Select
             fullWidth
             value={activityType}
-            onChange={(e) => setActivityType(e.target.value)}
+            onChange={(e) => {
+              setActivityType(e.target.value);
+              // Clear validation error when user selects a value
+              if (validationErrors.activityType) {
+                setValidationErrors(prev => ({ ...prev, activityType: undefined }));
+              }
+            }}
             displayEmpty
             sx={{ mt: 2 }}
+            error={!!validationErrors.activityType}
+            required
           >
-            <MenuItem value="" disabled>Select Activity Type</MenuItem>
+            <MenuItem value="" disabled>Select Activity Type *</MenuItem>
             <MenuItem value="Game">Game</MenuItem>
             <MenuItem value="Practice">Practice</MenuItem>
             <MenuItem value="Skills Session">Skills Session</MenuItem>
             <MenuItem value="Open Skate">Open Skate</MenuItem>
           </Select>
+          {validationErrors.activityType && (
+            <Typography color="error" variant="caption" sx={{ display: 'block', mt: 0.5, ml: 1 }}>
+              {validationErrors.activityType}
+            </Typography>
+          )}
           <TextField
             fullWidth
             label="Activity Details"
             value={activityDetails}
-            onChange={(e) => setActivityDetails(e.target.value)}
+            onChange={(e) => {
+              setActivityDetails(e.target.value);
+              // Clear validation error when user types
+              if (validationErrors.activityDetails) {
+                setValidationErrors(prev => ({ ...prev, activityDetails: undefined }));
+              }
+            }}
             sx={{ mt: 2 }}
+            error={!!validationErrors.activityDetails}
+            helperText={validationErrors.activityDetails}
+            required
           />
           <Button
             fullWidth
