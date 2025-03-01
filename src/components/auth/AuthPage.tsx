@@ -102,10 +102,10 @@ const AuthPage = () => {
     }
 
     try {
+      // Send password reset email with the correct continueUrl
+      // Firebase will handle the reset on its page, then redirect to our app
       await sendPasswordResetEmail(auth, email, {
-        // Add URL to redirect back to the app's password reset confirmation page
-        url: window.location.origin + "/reset-password",
-        handleCodeInApp: true
+        url: window.location.origin + "/reset-password"
       });
       setSuccessMessage("Password reset email sent! Check your inbox.");
       setError("");

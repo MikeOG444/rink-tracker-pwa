@@ -25,27 +25,43 @@ const PasswordResetConfirm = () => {
 
   // Extract the action code from the URL
   useEffect(() => {
+    // When the component mounts, check for the oobCode in the URL
     const queryParams = new URLSearchParams(location.search);
-    
-    // Try to get the code from our app's URL parameter
-    let code = queryParams.get("oobCode");
-    
-    // If not found, check if we have a mode and oobCode (Firebase redirect format)
-    if (!code) {
-      const mode = queryParams.get("mode");
-      const actionCode = queryParams.get("oobCode");
-      
-      if (mode === "resetPassword" && actionCode) {
-        code = actionCode;
-      }
-    }
+    const code = queryParams.get("oobCode");
     
     if (code) {
+      console.log("Found oobCode in URL:", code);
       setOobCode(code);
     } else {
+      console.error("No oobCode found in URL:", location.search);
       setError("Invalid password reset link. Please request a new one.");
     }
   }, [location]);
+
+  // If we're redirected from Firebase's action handler page, the URL might change
+  // This effect will run when the component is already mounted but the URL changes
+  useEffect(() => {
+    const handleRedirect = () => {
+      const queryParams = new URLSearchParams(window.location.search);
+      const code = queryParams.get("oobCode");
+      
+      if (code && !oobCode) {
+        console.log("Found oobCode after redirect:", code);
+        setOobCode(code);
+        setError("");
+      }
+    };
+
+    // Listen for changes to the URL
+    window.addEventListener('popstate', handleRedirect);
+    
+    // Check immediately in case we're already on the right URL
+    handleRedirect();
+    
+    return () => {
+      window.removeEventListener('popstate', handleRedirect);
+    };
+  }, [oobCode]);
 
   const handleResetPassword = async () => {
     // Validate passwords

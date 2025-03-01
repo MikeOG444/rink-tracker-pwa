@@ -19,7 +19,8 @@ export const auth = getAuth(app);
 
 // Configure Firebase Auth settings
 auth.useDeviceLanguage();
-// Note: We'll handle password reset URL in the sendPasswordResetEmail function
+// Note: Firebase will handle the password reset action on its own page first,
+// then redirect to our app's reset-password page
 
 export const googleProvider = new GoogleAuthProvider(); // ✅ Properly exported
 

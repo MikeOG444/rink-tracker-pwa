@@ -7,6 +7,7 @@ import AuthPage from "./components/auth/AuthPage";
 import Dashboard from "./components/dashboard/Dashboard";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import PasswordResetConfirm from "./components/auth/PasswordResetConfirm";
+import ActionHandler from "./components/auth/ActionHandler";
 import NavBar from "./components/layout/NavBar.tsx";
 
 const App = () => {
@@ -20,8 +21,10 @@ const App = () => {
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/reset-password" element={<PasswordResetConfirm />} />
+          
           {/* Handle Firebase Auth action URLs */}
-          <Route path="/__/auth/action" element={<PasswordResetConfirm />} />
+          <Route path="/__/auth/action" element={<ActionHandler />} />
+          <Route path="/auth/action" element={<ActionHandler />} />
         </Routes>
       </Router>
     </ThemeProvider>
