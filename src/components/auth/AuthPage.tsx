@@ -89,6 +89,7 @@ const AuthPage = () => {
         <TextField
           fullWidth
           label="Full Name"
+          placeholder="Enter your full name"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           sx={{ 
@@ -97,10 +98,25 @@ const AuthPage = () => {
             borderRadius: 1,
             '& .MuiInputBase-input': {
               color: '#000000', // Black text for high contrast
+            },
+            '& .MuiInputLabel-root': {
+              color: '#757575', // Grey label text
+            },
+            '& .MuiInputLabel-shrink': {
+              transform: 'translate(14px, -9px) scale(0.75)', // Adjust label position when shrunk
+              backgroundColor: 'white',
+              padding: '0 5px',
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#BBBBBB', // Lighter border color
+            },
+            '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#1E90FF', // Blue border when focused
             }
           }}
           InputProps={{
-            style: { color: '#000000' } // Ensure text is black
+            style: { color: '#000000' }, // Ensure text is black
+            placeholder: 'Enter your full name'
           }}
           required
         />
@@ -108,6 +124,7 @@ const AuthPage = () => {
       <TextField
         fullWidth
         label="Email"
+        placeholder="Enter your email address"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         sx={{ 
@@ -116,15 +133,31 @@ const AuthPage = () => {
           borderRadius: 1,
           '& .MuiInputBase-input': {
             color: '#000000', // Black text for high contrast
+          },
+          '& .MuiInputLabel-root': {
+            color: '#757575', // Grey label text
+          },
+          '& .MuiInputLabel-shrink': {
+            transform: 'translate(14px, -9px) scale(0.75)', // Adjust label position when shrunk
+            backgroundColor: 'white',
+            padding: '0 5px',
+          },
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#BBBBBB', // Lighter border color
+          },
+          '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#1E90FF', // Blue border when focused
           }
         }}
         InputProps={{
-          style: { color: '#000000' } // Ensure text is black
+          style: { color: '#000000' }, // Ensure text is black
+          placeholder: 'Enter your email address'
         }}
       />
       <TextField
         fullWidth
         label="Password"
+        placeholder="Enter your password"
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
@@ -134,10 +167,25 @@ const AuthPage = () => {
           borderRadius: 1,
           '& .MuiInputBase-input': {
             color: '#000000', // Black text for high contrast
+          },
+          '& .MuiInputLabel-root': {
+            color: '#757575', // Grey label text
+          },
+          '& .MuiInputLabel-shrink': {
+            transform: 'translate(14px, -9px) scale(0.75)', // Adjust label position when shrunk
+            backgroundColor: 'white',
+            padding: '0 5px',
+          },
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#BBBBBB', // Lighter border color
+          },
+          '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#1E90FF', // Blue border when focused
           }
         }}
         InputProps={{
-          style: { color: '#000000' } // Ensure text is black
+          style: { color: '#000000' }, // Ensure text is black
+          placeholder: 'Enter your password'
         }}
       />
       {isSignUp ? (
