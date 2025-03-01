@@ -20,6 +20,8 @@ const App = () => {
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/reset-password" element={<PasswordResetConfirm />} />
+          {/* Handle Firebase Auth action URLs */}
+          <Route path="/__/auth/action" element={<PasswordResetConfirm />} />
         </Routes>
       </Router>
     </ThemeProvider>

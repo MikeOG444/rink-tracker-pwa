@@ -26,7 +26,20 @@ const PasswordResetConfirm = () => {
   // Extract the action code from the URL
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
-    const code = queryParams.get("oobCode");
+    
+    // Try to get the code from our app's URL parameter
+    let code = queryParams.get("oobCode");
+    
+    // If not found, check if we have a mode and oobCode (Firebase redirect format)
+    if (!code) {
+      const mode = queryParams.get("mode");
+      const actionCode = queryParams.get("oobCode");
+      
+      if (mode === "resetPassword" && actionCode) {
+        code = actionCode;
+      }
+    }
+    
     if (code) {
       setOobCode(code);
     } else {

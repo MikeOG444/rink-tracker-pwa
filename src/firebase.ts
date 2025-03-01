@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, connectAuthEmulator } from "firebase/auth";
 import { persistentLocalCache, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -16,6 +16,11 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Configure Firebase Auth settings
+auth.useDeviceLanguage();
+// Note: We'll handle password reset URL in the sendPasswordResetEmail function
+
 export const googleProvider = new GoogleAuthProvider(); // ✅ Properly exported
 
 export const db = initializeFirestore(app, {
