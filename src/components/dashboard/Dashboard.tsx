@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useLocation } from "react-router-dom";
 import { updateProfile } from "firebase/auth";
 import { addActivity, getUserActivities, editActivity, deleteActivity } from "../../services/firestore";
 import {
@@ -13,6 +14,7 @@ import { getOfflineActivities } from "../../services/indexedDB";
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [activityType, setActivityType] = useState("");
   const [activityDetails, setActivityDetails] = useState("");
   const [activities, setActivities] = useState<any[]>([]);
@@ -24,6 +26,7 @@ const Dashboard = () => {
   }>({});
   const [filterType, setFilterType] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [rinkPreSelected, setRinkPreSelected] = useState(false);
 
   // Listen for network changes
   useEffect(() => {
@@ -86,6 +89,25 @@ const Dashboard = () => {
     }
   }, [user]);
 
+  // Check for rink information in location state
+  useEffect(() => {
+    // Check if we have rink information from the map
+    const state = location.state as { logActivity?: boolean; rink?: any } | null;
+    
+    if (state?.logActivity && state.rink) {
+      console.log("📍 Received rink information:", state.rink);
+      
+      // Pre-select "Open Skate" as default activity type
+      setActivityType("Open Skate");
+      
+      // Pre-populate activity details with rink name and address
+      setActivityDetails(`Skated at ${state.rink.name} (${state.rink.address})`);
+      
+      // Set flag to show notification
+      setRinkPreSelected(true);
+    }
+  }, [location.state]);
+
   const handleLogActivity = async () => {
     console.log("📌 Log Activity button clicked");
     
@@ -124,6 +146,7 @@ const Dashboard = () => {
       
       setActivityType("");
       setActivityDetails("");
+      setRinkPreSelected(false); // Reset the rink pre-selected flag
       fetchActivities();
       console.log("🎉 Activity successfully logged!");
     } catch (error) {
@@ -293,6 +316,36 @@ const Dashboard = () => {
           <Typography variant="h6" fontWeight="bold">
             Log a New Activity
           </Typography>
+          
+          {/* Rink pre-selected notification */}
+          {rinkPreSelected && (
+            <Box 
+              sx={{ 
+                bgcolor: "success.dark", 
+                color: "white", 
+                p: 1.5, 
+                borderRadius: 1, 
+                mt: 1, 
+                mb: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between"
+              }}
+            >
+              <Typography variant="body2">
+                ✅ Rink information pre-filled from map selection
+              </Typography>
+              <Button 
+                size="small" 
+                variant="outlined" 
+                color="inherit" 
+                sx={{ ml: 1, fontSize: "0.7rem" }}
+                onClick={() => setRinkPreSelected(false)}
+              >
+                Dismiss
+              </Button>
+            </Box>
+          )}
           <Select
             fullWidth
             value={activityType}

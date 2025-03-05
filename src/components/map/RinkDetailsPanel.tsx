@@ -65,7 +65,7 @@ const RinkDetailsPanel = ({ rink, onClose }: RinkDetailsPanelProps) => {
     if (!rink || !user) return;
     
     // Navigate to dashboard with rink info
-    navigate('/', { 
+    navigate('/dashboard', { 
       state: { 
         logActivity: true,
         rink: rink
