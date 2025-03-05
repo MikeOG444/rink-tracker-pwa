@@ -13,11 +13,18 @@ import {
   ListItemText,
   Divider,
   Snackbar,
-  Alert
+  Alert,
+  Button
 } from '@mui/material';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import SearchIcon from '@mui/icons-material/Search';
+import NearMeIcon from '@mui/icons-material/NearMe';
+import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { Rink, searchRinksByName, findRinksInMapBounds, getRinkDetails } from '../../services/placesAPI';
+import { hasUserVisitedRink, getUserVisitedRinks } from '../../services/firestore';
+import RinkDetailsPanel from '../../components/map/RinkDetailsPanel';
 
 // Map container styles
 const containerStyle = {
@@ -31,43 +38,19 @@ const defaultCenter = {
   lng: -79.3832
 };
 
-// Mock data for rinks
-interface Rink {
-  id: string;
-  name: string;
-  address: string;
-  position: google.maps.LatLngLiteral;
-}
-
-const mockRinks: Rink[] = [
-  {
-    id: '1',
-    name: 'Toronto Ice Gardens',
-    address: '123 Hockey Lane, Toronto',
-    position: { lat: 43.6532, lng: -79.3832 }
-  },
-  {
-    id: '2',
-    name: 'Maple Leaf Arena',
-    address: '456 Puck Street, Toronto',
-    position: { lat: 43.6632, lng: -79.3732 }
-  },
-  {
-    id: '3',
-    name: 'Stanley Cup Rink',
-    address: '789 Slapshot Avenue, Toronto',
-    position: { lat: 43.6432, lng: -79.3932 }
-  }
-];
+// Libraries to load with the Google Maps API
+const libraries: any = ['places'];
 
 const MapPage = () => {
   console.log('MapPage rendering');
   const navigate = useNavigate();
+  const { user } = useAuth();
   
-  // Load the Google Maps JavaScript API
+  // Load the Google Maps JavaScript API with Places library
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    libraries
   });
 
   // State for map and location tracking
@@ -78,27 +61,97 @@ const MapPage = () => {
   const [searchResults, setSearchResults] = useState<Rink[]>([]);
   const [selectedRink, setSelectedRink] = useState<Rink | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [noResults, setNoResults] = useState(false);
+  const [visitedRinks, setVisitedRinks] = useState<Set<string>>(new Set());
+  const [showRinkDetails, setShowRinkDetails] = useState(false);
+  const [detailedRink, setDetailedRink] = useState<Rink | null>(null);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   
   // Ref to track if component is mounted
   const isMounted = useRef(true);
   const locationTimeoutRef = useRef<number | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Function to search for rinks
-  const searchRinks = useCallback((query: string) => {
+  // Load visited rinks for the current user
+  useEffect(() => {
+    const loadVisitedRinks = async () => {
+      if (!user) return;
+      
+      try {
+        const rinks = await getUserVisitedRinks(user.uid);
+        const rinkIds = new Set(rinks.map(rink => rink.id));
+        setVisitedRinks(rinkIds);
+      } catch (error) {
+        console.error('Error loading visited rinks:', error);
+      }
+    };
+    
+    loadVisitedRinks();
+  }, [user]);
+
+  // Function to search for rinks using Google Places API
+  const searchRinks = useCallback(async (query: string) => {
+    if (!map || !query.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+    
     console.log('Searching for rinks with query:', query);
+    setIsSearching(true);
+    setNoResults(false);
+    setShowSearchResults(true);
     
-    // Filter mock rinks based on query
-    const results = mockRinks.filter(rink => 
-      rink.name.toLowerCase().includes(query.toLowerCase()) ||
-      rink.address.toLowerCase().includes(query.toLowerCase())
-    );
+    try {
+      const results = await searchRinksByName(query, map);
+      console.log('Search results:', results.length);
+      
+      if (results.length === 0) {
+        setNoResults(true);
+      }
+      
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Error searching for rinks:', error);
+      setError('Error searching for rinks. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  }, [map]);
+  
+  // Function to find rinks in the current map view
+  const findRinksInView = useCallback(async () => {
+    if (!map) {
+      setError('Cannot find rinks: Map is not available.');
+      return;
+    }
     
-    console.log('Search results:', results.length);
-    setSearchResults(results);
-  }, []);
+    console.log('Finding rinks in current map view');
+    setIsSearching(true);
+    setShowSearchResults(false); // Don't show dropdown for map view search
+    setSearchQuery(''); // Clear search query
+    
+    try {
+      const results = await findRinksInMapBounds(map);
+      console.log('Map view results:', results.length);
+      
+      // Don't show results in dropdown, just add markers to the map
+      setSearchResults(results);
+      
+      if (results.length === 0) {
+        setError('No rinks found in the current map view.');
+      }
+    } catch (error) {
+      console.error('Error finding rinks in map view:', error);
+      setError('Error finding rinks. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  }, [map]);
   
   // Function to handle rink selection
-  const handleRinkSelect = useCallback((rink: Rink) => {
+  const handleRinkSelect = useCallback(async (rink: Rink) => {
     console.log('Selected rink:', rink.name);
     setSelectedRink(rink);
     
@@ -106,8 +159,25 @@ const MapPage = () => {
       console.log('Centering map on selected rink:', rink.position.lat, rink.position.lng);
       map.panTo(rink.position);
       map.setZoom(15);
+      
+      // Get detailed information about the rink
+      try {
+        const detailedRink = await getRinkDetails(rink.id, map);
+        setDetailedRink(detailedRink);
+        setShowRinkDetails(true);
+      } catch (error) {
+        console.error('Error getting rink details:', error);
+        // Still show the details panel with the basic info we have
+        setDetailedRink(rink);
+        setShowRinkDetails(true);
+      }
     }
   }, [map]);
+  
+  // Function to handle marker click
+  const handleMarkerClick = useCallback((rink: Rink) => {
+    handleRinkSelect(rink);
+  }, [handleRinkSelect]);
   
   // Function to center map on a location
   const centerMapOnLocation = useCallback((location: google.maps.LatLngLiteral) => {
@@ -279,10 +349,15 @@ const MapPage = () => {
     }, 100);
   };
   
-  // Handle back button click
-  const handleBackClick = () => {
-    console.log('Back button clicked');
-    navigate('/');
+  // Handle clear search
+  const handleClearSearch = () => {
+    console.log('Clear search clicked');
+    setSearchQuery('');
+    setSearchResults([]);
+    setNoResults(false);
+    setSelectedRink(null);
+    setShowRinkDetails(false);
+    setShowSearchResults(false);
   };
   
   // Handle error close
@@ -300,16 +375,32 @@ const MapPage = () => {
     );
   }
 
-  // Handle search input change
+  // Handle search input change with debounce
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const query = event.target.value;
     setSearchQuery(query);
     
+    // Clear any existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
     if (query.length >= 2) {
-      searchRinks(query);
+      // Debounce search to avoid too many API calls
+      searchTimeoutRef.current = setTimeout(() => {
+        searchRinks(query);
+      }, 500);
     } else {
       setSearchResults([]);
+      setNoResults(false);
+      setShowSearchResults(false);
     }
+  };
+  
+  // Close the rink details panel
+  const handleCloseRinkDetails = () => {
+    setShowRinkDetails(false);
+    setDetailedRink(null);
   };
 
   console.log('Rendering map with userLocation:', userLocation ? 
@@ -334,17 +425,29 @@ const MapPage = () => {
             placeholder="Search for hockey rinks"
             value={searchQuery}
             onChange={handleSearchChange}
+            disabled={isSearching}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon />
+                  {isSearching ? <CircularProgress size={20} /> : <SearchIcon />}
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery && (
+                <InputAdornment position="end">
+                  <IconButton
+                    onClick={handleClearSearch}
+                    edge="end"
+                    size="small"
+                  >
+                    <CloseIcon />
+                  </IconButton>
                 </InputAdornment>
               ),
             }}
           />
           
-          {/* Search results */}
-          {searchResults.length > 0 && (
+          {/* Search results - only show when searching by name */}
+          {showSearchResults && searchResults.length > 0 && (
             <Paper elevation={3} sx={{ mt: 1, maxHeight: 300, overflow: 'auto' }}>
               <List>
                 {searchResults.map((rink, index) => (
@@ -353,7 +456,10 @@ const MapPage = () => {
                       <ListItemText 
                         primary={rink.name} 
                         secondary={rink.address}
-                        primaryTypographyProps={{ fontWeight: selectedRink?.id === rink.id ? 'bold' : 'normal' }}
+                        primaryTypographyProps={{ 
+                          fontWeight: selectedRink?.id === rink.id ? 'bold' : 'normal',
+                          color: visitedRinks.has(rink.id) ? 'success.main' : 'inherit'
+                        }}
                       />
                     </ListItem>
                     {index < searchResults.length - 1 && <Divider />}
@@ -362,25 +468,16 @@ const MapPage = () => {
               </List>
             </Paper>
           )}
+          
+          {/* No results message - only show when searching by name */}
+          {showSearchResults && noResults && (
+            <Paper elevation={3} sx={{ mt: 1, p: 2 }}>
+              <Typography variant="body1" align="center">
+                No rinks found. Try a different search term or location.
+              </Typography>
+            </Paper>
+          )}
         </Paper>
-      </Box>
-      
-      {/* Back button */}
-      <Box sx={{ position: 'absolute', top: 20, left: 20, zIndex: 1000 }}>
-        <IconButton
-          onClick={handleBackClick}
-          sx={{ 
-            backgroundColor: 'white',
-            boxShadow: 3,
-            '&:hover': {
-              backgroundColor: '#f5f5f5',
-            }
-          }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24">
-            <path d="M400-80 0-480l400-400 71 71-329 329 329 329-71 71Z" />
-          </svg>
-        </IconButton>
       </Box>
       
       {/* Google Map */}
@@ -416,14 +513,30 @@ const MapPage = () => {
             key={rink.id}
             position={rink.position}
             title={rink.name}
-            onClick={() => handleRinkSelect(rink)}
+            onClick={() => handleMarkerClick(rink)}
             animation={selectedRink?.id === rink.id ? google.maps.Animation.BOUNCE : undefined}
+            icon={{
+              url: visitedRinks.has(rink.id) 
+                ? "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%234CAF50' d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E"
+                : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%231976D2' d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E",
+              scaledSize: new window.google.maps.Size(32, 32),
+              anchor: new window.google.maps.Point(16, 32)
+            }}
           />
         ))}
       </GoogleMap>
+      
+      {/* Rink Details Panel */}
+      {showRinkDetails && detailedRink && (
+        <RinkDetailsPanel 
+          rink={detailedRink} 
+          onClose={handleCloseRinkDetails} 
+        />
+      )}
 
-      {/* My Location button */}
-      <Box sx={{ position: 'fixed', bottom: 30, left: 30, zIndex: 9999 }}>
+      {/* Map Controls */}
+      <Box sx={{ position: 'fixed', bottom: 30, left: 30, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {/* My Location button */}
         <Paper
           elevation={4}
           sx={{
@@ -449,6 +562,37 @@ const MapPage = () => {
             {isLocating ? 
               <CircularProgress size={24} /> : 
               <MyLocationIcon fontSize="medium" color="primary" />
+            }
+          </IconButton>
+        </Paper>
+        
+        {/* Find Rinks in View button */}
+        <Paper
+          elevation={4}
+          sx={{
+            borderRadius: '50%',
+            overflow: 'hidden',
+            border: '1px solid rgba(0, 0, 0, 0.12)'
+          }}
+        >
+          <IconButton
+            color="default"
+            onClick={findRinksInView}
+            disabled={isSearching}
+            sx={{ 
+              backgroundColor: 'white',
+              width: 48,
+              height: 48,
+              '&:hover': {
+                backgroundColor: '#f5f5f5',
+              }
+            }}
+            size="large"
+            title="Find rinks in current map view"
+          >
+            {isSearching ? 
+              <CircularProgress size={24} /> : 
+              <NearMeIcon fontSize="medium" color="secondary" />
             }
           </IconButton>
         </Paper>

@@ -1,0 +1,8 @@
+/* Fix for Leaflet marker icons */
+.leaflet-default-icon-path {
+  background-image: url("./images/leaflet/marker-icon.png");
+}
+
+.leaflet-default-shadow-path {
+  background-image: url("./images/leaflet/marker-shadow.png");
+}

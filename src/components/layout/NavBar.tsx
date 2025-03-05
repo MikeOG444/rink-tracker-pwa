@@ -19,26 +19,44 @@ const NavBar = () => {
         <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: "bold", cursor: "pointer" }} onClick={() => navigate("/")}>
           Rink Tracker
         </Typography>
-        {user && (
-          <Box>
-            <Button 
-              color="inherit" 
-              onClick={() => navigate("/dashboard")} 
-              sx={{ 
-                mr: 2, 
-                fontWeight: "bold",
-                '&:hover': {
-                  backgroundColor: "rgba(255, 255, 255, 0.1)"
-                }
-              }}
-            >
-              Dashboard
-            </Button>
-            <Button color="error" variant="contained" onClick={handleLogout}>
-              Logout
-            </Button>
-          </Box>
-        )}
+        <Box sx={{ display: 'flex' }}>
+          {/* Map button is always visible */}
+          <Button 
+            color="inherit" 
+            onClick={() => navigate("/map")} 
+            sx={{ 
+              mr: 2, 
+              fontWeight: "bold",
+              '&:hover': {
+                backgroundColor: "rgba(255, 255, 255, 0.1)"
+              }
+            }}
+          >
+            Map
+          </Button>
+          
+          {/* User-specific buttons */}
+          {user && (
+            <>
+              <Button 
+                color="inherit" 
+                onClick={() => navigate("/dashboard")} 
+                sx={{ 
+                  mr: 2, 
+                  fontWeight: "bold",
+                  '&:hover': {
+                    backgroundColor: "rgba(255, 255, 255, 0.1)"
+                  }
+                }}
+              >
+                Dashboard
+              </Button>
+              <Button color="error" variant="contained" onClick={handleLogout}>
+                Logout
+              </Button>
+            </>
+          )}
+        </Box>
       </Toolbar>
     </AppBar>
   );

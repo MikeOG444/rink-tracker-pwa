@@ -1,16 +1,26 @@
 import { db } from "../firebase";
-import { collection, addDoc, getDocs, query, where, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, orderBy, doc, updateDoc, deleteDoc, getDoc, setDoc, increment } from "firebase/firestore";
 import { saveActivityOffline, getOfflineActivities, clearOfflineActivities } from "./indexedDB";
+import { Rink } from "./placesAPI";
 
 const ACTIVITIES_COLLECTION = "activities";
+const RINKS_COLLECTION = "rinks";
+const USER_RINKS_COLLECTION = "user_rinks";
 
-// ✅ Add activity with offline handling
-export const addActivity = async (userId: string, type: string, details: string) => {
+// ✅ Add activity with offline handling and optional rink information
+export const addActivity = async (userId: string, type: string, details: string, rink?: Rink) => {
     const activity = {
         userId,
         type,
         details,
         timestamp: new Date().toISOString(),
+        rink: rink ? {
+            id: rink.id,
+            name: rink.name,
+            address: rink.address,
+            position: rink.position,
+            photo: rink.photo
+        } : undefined
     };
 
     try {
@@ -101,5 +111,152 @@ export const getUserActivities = async (userId: string) => {
     } catch (error) {
         console.error("❌ Error fetching activities from Firestore:", error);
         return [];
+    }
+};
+
+// ✅ Save a rink that the user has visited
+export const saveVisitedRink = async (userId: string, rink: Rink) => {
+    try {
+        console.log("🔥 Saving visited rink:", rink.name);
+        
+        // First, save the rink to the global rinks collection if it doesn't exist
+        const rinkRef = doc(db, RINKS_COLLECTION, rink.id);
+        const rinkDoc = await getDoc(rinkRef);
+        
+        if (!rinkDoc.exists()) {
+            // Save basic rink info to the global rinks collection
+            await setDoc(rinkRef, {
+                id: rink.id,
+                name: rink.name,
+                address: rink.address,
+                position: rink.position,
+                photo: rink.photo,
+                rating: rink.rating,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            });
+            console.log("✅ Rink added to global collection:", rink.name);
+        } else {
+            // Update the rink info in case anything has changed
+            await updateDoc(rinkRef, {
+                name: rink.name,
+                address: rink.address,
+                position: rink.position,
+                photo: rink.photo,
+                rating: rink.rating,
+                updatedAt: new Date().toISOString()
+            });
+            console.log("✅ Rink updated in global collection:", rink.name);
+        }
+        
+        // Then, save or update the user-specific rink info
+        const userRinkRef = doc(db, USER_RINKS_COLLECTION, `${userId}_${rink.id}`);
+        const userRinkDoc = await getDoc(userRinkRef);
+        
+        if (!userRinkDoc.exists()) {
+            // First visit to this rink
+            await setDoc(userRinkRef, {
+                userId,
+                rinkId: rink.id,
+                visitCount: 1,
+                firstVisit: new Date().toISOString(),
+                lastVisit: new Date().toISOString()
+            });
+            console.log("✅ First visit to rink recorded for user");
+        } else {
+            // Update visit count and last visit date
+            await updateDoc(userRinkRef, {
+                visitCount: increment(1),
+                lastVisit: new Date().toISOString()
+            });
+            console.log("✅ Visit count updated for rink");
+        }
+        
+        return true;
+    } catch (error) {
+        console.error("❌ Error saving visited rink:", error);
+        return false;
+    }
+};
+
+// ✅ Get all rinks that a user has visited
+export const getUserVisitedRinks = async (userId: string): Promise<Rink[]> => {
+    try {
+        console.log("📡 Fetching visited rinks for user:", userId);
+        
+        // Query the user_rinks collection for this user
+        const q = query(
+            collection(db, USER_RINKS_COLLECTION),
+            where("userId", "==", userId)
+        );
+        
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            console.warn("⚠️ No visited rinks found for user:", userId);
+            return [];
+        }
+        
+        // Get the rink IDs and visit counts
+        const userRinks = snapshot.docs.map(doc => doc.data());
+        
+        // Fetch the actual rink details from the rinks collection
+        const rinks: Rink[] = [];
+        
+        for (const userRink of userRinks) {
+            const rinkRef = doc(db, RINKS_COLLECTION, userRink.rinkId);
+            const rinkDoc = await getDoc(rinkRef);
+            
+            if (rinkDoc.exists()) {
+                const rinkData = rinkDoc.data();
+                rinks.push({
+                    id: rinkData.id,
+                    name: rinkData.name,
+                    address: rinkData.address,
+                    position: rinkData.position,
+                    photo: rinkData.photo,
+                    rating: rinkData.rating,
+                    visitCount: userRink.visitCount,
+                    lastVisit: userRink.lastVisit
+                });
+            }
+        }
+        
+        console.log("✅ Retrieved", rinks.length, "visited rinks");
+        return rinks;
+    } catch (error) {
+        console.error("❌ Error fetching visited rinks:", error);
+        return [];
+    }
+};
+
+// ✅ Check if a user has visited a specific rink
+export const hasUserVisitedRink = async (userId: string, rinkId: string): Promise<boolean> => {
+    try {
+        const userRinkRef = doc(db, USER_RINKS_COLLECTION, `${userId}_${rinkId}`);
+        const userRinkDoc = await getDoc(userRinkRef);
+        
+        return userRinkDoc.exists();
+    } catch (error) {
+        console.error("❌ Error checking if user visited rink:", error);
+        return false;
+    }
+};
+
+// ✅ Get visit count for a specific rink
+export const getRinkVisitCount = async (userId: string, rinkId: string): Promise<number> => {
+    try {
+        const userRinkRef = doc(db, USER_RINKS_COLLECTION, `${userId}_${rinkId}`);
+        const userRinkDoc = await getDoc(userRinkRef);
+        
+        if (userRinkDoc.exists()) {
+            const data = userRinkDoc.data();
+            return data.visitCount || 0;
+        }
+        
+        return 0;
+    } catch (error) {
+        console.error("❌ Error getting rink visit count:", error);
+        return 0;
     }
 };

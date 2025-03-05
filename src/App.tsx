@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import HomePage from "./components/pages/HomePage";
 import AuthPage from "./components/auth/AuthPage";
 import Dashboard from "./components/dashboard/Dashboard";
+import MapPage from "./components/pages/MapPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import PasswordResetConfirm from "./components/auth/PasswordResetConfirm";
 import ActionHandler from "./components/auth/ActionHandler";
@@ -20,6 +21,7 @@ const App = () => {
           <Route path="/" element={<HomePage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/map" element={<MapPage />} />
           <Route path="/reset-password" element={<PasswordResetConfirm />} />
           
           {/* Handle Firebase Auth action URLs */}
