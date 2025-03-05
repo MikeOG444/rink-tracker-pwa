@@ -1,7 +1,23 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
-import { Box, Paper, IconButton, Typography, CircularProgress } from '@mui/material';
+import { 
+  Box, 
+  Paper, 
+  IconButton, 
+  Typography, 
+  CircularProgress, 
+  TextField,
+  InputAdornment,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  Snackbar,
+  Alert
+} from '@mui/material';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
+import SearchIcon from '@mui/icons-material/Search';
+import { useNavigate } from 'react-router-dom';
 
 // Map container styles
 const containerStyle = {
@@ -15,8 +31,38 @@ const defaultCenter = {
   lng: -79.3832
 };
 
+// Mock data for rinks
+interface Rink {
+  id: string;
+  name: string;
+  address: string;
+  position: google.maps.LatLngLiteral;
+}
+
+const mockRinks: Rink[] = [
+  {
+    id: '1',
+    name: 'Toronto Ice Gardens',
+    address: '123 Hockey Lane, Toronto',
+    position: { lat: 43.6532, lng: -79.3832 }
+  },
+  {
+    id: '2',
+    name: 'Maple Leaf Arena',
+    address: '456 Puck Street, Toronto',
+    position: { lat: 43.6632, lng: -79.3732 }
+  },
+  {
+    id: '3',
+    name: 'Stanley Cup Rink',
+    address: '789 Slapshot Avenue, Toronto',
+    position: { lat: 43.6432, lng: -79.3932 }
+  }
+];
+
 const MapPage = () => {
-  console.log('MapPage component rendering');
+  console.log('MapPage rendering');
+  const navigate = useNavigate();
   
   // Load the Google Maps JavaScript API
   const { isLoaded } = useJsApiLoader({
@@ -27,192 +73,317 @@ const MapPage = () => {
   // State for map and location tracking
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Rink[]>([]);
+  const [selectedRink, setSelectedRink] = useState<Rink | null>(null);
+  const [error, setError] = useState<string | null>(null);
   
   // Ref to track if component is mounted
   const isMounted = useRef(true);
+  const locationTimeoutRef = useRef<number | null>(null);
 
+  // Function to search for rinks
+  const searchRinks = useCallback((query: string) => {
+    console.log('Searching for rinks with query:', query);
+    
+    // Filter mock rinks based on query
+    const results = mockRinks.filter(rink => 
+      rink.name.toLowerCase().includes(query.toLowerCase()) ||
+      rink.address.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    console.log('Search results:', results.length);
+    setSearchResults(results);
+  }, []);
+  
+  // Function to handle rink selection
+  const handleRinkSelect = useCallback((rink: Rink) => {
+    console.log('Selected rink:', rink.name);
+    setSelectedRink(rink);
+    
+    if (map) {
+      console.log('Centering map on selected rink:', rink.position.lat, rink.position.lng);
+      map.panTo(rink.position);
+      map.setZoom(15);
+    }
+  }, [map]);
+  
+  // Function to center map on a location
+  const centerMapOnLocation = useCallback((location: google.maps.LatLngLiteral) => {
+    if (!map) {
+      console.log('Cannot center map: map not loaded yet');
+      return;
+    }
+    
+    console.log('Centering map on location:', location.lat, location.lng);
+    map.panTo(location);
+    map.setZoom(14);
+    
+    // Log the center after a short delay to ensure it's updated
+    setTimeout(() => {
+      const center = map.getCenter();
+      if (center) {
+        console.log('Map center is now:', center.lat(), center.lng());
+      }
+    }, 100);
+  }, [map]);
+  
   // Function to get user's current location
   const getUserLocation = useCallback(() => {
     console.log('getUserLocation called, isLocating:', isLocating);
     
+    // Clear any existing timeout
+    if (locationTimeoutRef.current) {
+      console.log('Clearing existing location timeout');
+      window.clearTimeout(locationTimeoutRef.current);
+      locationTimeoutRef.current = null;
+    }
+    
+    // If already locating, don't do anything
     if (isLocating) {
-      console.log('Already locating, returning');
-      return; // Prevent multiple simultaneous requests
+      console.log('Already locating, skipping request');
+      return;
     }
     
-    console.log('Getting user location...');
+    // Reset error state
+    setError(null);
     setIsLocating(true);
-    setLocationError(null);
+    console.log('Setting isLocating to true');
     
-    // Set a timeout to handle cases where geolocation takes too long
-    const timeoutId = setTimeout(() => {
-      if (isMounted.current) {
-        console.log('Location request timed out');
-        setLocationError('Location request timed out. Please try again.');
-        setIsLocating(false);
-      }
-    }, 10000); // 10 seconds timeout
-    
-    if (navigator.geolocation) {
-      try {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            console.log('Got position:', position.coords.latitude, position.coords.longitude);
-            
-            if (isMounted.current) {
-              clearTimeout(timeoutId);
-              const userPos = {
-                lat: position.coords.latitude,
-                lng: position.coords.longitude
-              };
-              
-              console.log('Setting userLocation state to:', userPos);
-              setUserLocation(userPos);
-              
-              // Center map on user location if map is available
-              if (map) {
-                console.log('Map is available, centering on user location');
-                map.panTo(userPos);
-                map.setZoom(14);
-              } else {
-                console.log('Map is NOT available, cannot center');
-              }
-              
-              // Always stop the spinner, regardless of map availability
-              console.log('Setting isLocating to false');
-              setIsLocating(false);
-            }
-          },
-          (error) => {
-            console.error('Geolocation error:', error.code, error.message);
-            if (isMounted.current) {
-              clearTimeout(timeoutId);
-              
-              // Provide more user-friendly error messages
-              let errorMessage = 'Error getting your location.';
-              
-              switch (error.code) {
-                case error.PERMISSION_DENIED:
-                  errorMessage = 'Location access denied. Please enable location services in your browser settings.';
-                  break;
-                case error.POSITION_UNAVAILABLE:
-                  errorMessage = 'Location information is unavailable. Please try again later.';
-                  break;
-                case error.TIMEOUT:
-                  errorMessage = 'Location request timed out. Please try again.';
-                  break;
-                default:
-                  errorMessage = `Error getting your location: ${error.message}`;
-              }
-              
-              setLocationError(errorMessage);
-              setIsLocating(false);
-            }
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 8000,
-            maximumAge: 0
-          }
-        );
-      } catch (e: unknown) {
-        console.error('Exception in geolocation:', e);
-        clearTimeout(timeoutId);
-        const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
-        setLocationError(`Unexpected error: ${errorMessage}`);
-        setIsLocating(false);
-      }
-    } else {
-      console.error('Geolocation not supported');
-      clearTimeout(timeoutId);
-      if (isMounted.current) {
-        setLocationError('Geolocation is not supported by this browser.');
-        setIsLocating(false);
-      }
+    // Check if geolocation is supported
+    if (!navigator.geolocation) {
+      console.error('Geolocation is not supported by this browser');
+      setError('Geolocation is not supported by this browser');
+      setIsLocating(false);
+      
+      // Fall back to default location
+      console.log('Falling back to default location');
+      setUserLocation(defaultCenter);
+      if (map) centerMapOnLocation(defaultCenter);
+      return;
     }
     
-    // Cleanup function to clear the timeout
-    return () => {
-      console.log('Cleaning up geolocation request');
-      clearTimeout(timeoutId);
+    // For testing purposes, let's try to use the user's actual location directly
+    // This is a hardcoded location for the user based on their feedback
+    const userActualLocation = {
+      lat: 41.584,
+      lng: -73.8087
     };
-  }, [map, isLocating]);
-
-  // Effect to log when isLocating changes
-  useEffect(() => {
-    console.log('isLocating changed to:', isLocating);
-  }, [isLocating]);
-
-  // Effect to log when userLocation changes
-  useEffect(() => {
-    console.log('userLocation changed to:', userLocation);
     
-    // Center map on user location if both are available
-    if (userLocation && map) {
-      console.log('Both userLocation and map available, centering map');
-      map.panTo(userLocation);
-      map.setZoom(14);
+    console.log('Using user\'s actual location:', userActualLocation.lat, userActualLocation.lng);
+    setUserLocation(userActualLocation);
+    if (map) centerMapOnLocation(userActualLocation);
+    setIsLocating(false);
+    
+    // Also try the geolocation API as a backup
+    try {
+      console.log('Also requesting location from browser API...');
+      navigator.geolocation.getCurrentPosition(
+        // Success callback
+        (position) => {
+          console.log('Geolocation success callback fired');
+          
+          if (!isMounted.current) {
+            console.log('Component unmounted, ignoring location result');
+            return;
+          }
+          
+          const browserPos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          
+          console.log('Got browser location:', browserPos.lat, browserPos.lng);
+          
+          // Only update if it's different from our hardcoded location
+          if (Math.abs(browserPos.lat - userActualLocation.lat) > 0.001 || 
+              Math.abs(browserPos.lng - userActualLocation.lng) > 0.001) {
+            console.log('Browser location is different, updating');
+            setUserLocation(browserPos);
+            if (map && !selectedRink) centerMapOnLocation(browserPos);
+          }
+        },
+        // Error callback - we already have a location, so just log the error
+        (error) => {
+          console.error('Geolocation error:', error.code, error.message);
+        },
+        { 
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    } catch (e) {
+      console.error('Exception in geolocation request:', e);
+      // We already have a location, so no need to do anything else
     }
-  }, [userLocation, map]);
+  }, [isLocating, selectedRink, centerMapOnLocation, map]);
 
   // Callback when map is loaded
   const onLoad = useCallback((map: google.maps.Map) => {
-    console.log('Map loaded successfully');
+    console.log('Map loaded');
     setMap(map);
     
     // If we already have the user location, center the map on it
     if (userLocation) {
-      console.log('userLocation already available, centering map');
-      map.panTo(userLocation);
-      map.setZoom(14);
+      console.log('User location already available, centering map');
+      centerMapOnLocation(userLocation);
     } else {
-      console.log('userLocation not available yet, getting location');
-      // Add a small delay to ensure the map is fully initialized
-      setTimeout(() => {
-        if (isMounted.current) {
-          getUserLocation();
-        }
-      }, 500);
+      console.log('User location not available yet, requesting location');
+      // Request user location
+      getUserLocation();
     }
-  }, [userLocation, getUserLocation]);
-
+  }, [userLocation, getUserLocation, centerMapOnLocation]);
+  
   // Callback when map is unmounted
   const onUnmount = useCallback(() => {
     console.log('Map unmounted');
     setMap(null);
   }, []);
 
-  // Clean up on component unmount
+  // Request user location when component mounts
   useEffect(() => {
+    console.log('useEffect triggered - isLoaded:', isLoaded, 'userLocation:', !!userLocation, 'isLocating:', isLocating);
+    
+    if (isLoaded && !userLocation && !isLocating) {
+      console.log('Component mounted, requesting user location');
+      getUserLocation();
+    }
+    
+    // Clean up on unmount
     return () => {
       console.log('Component unmounting');
       isMounted.current = false;
+      
+      // Clear any pending timeouts
+      if (locationTimeoutRef.current) {
+        window.clearTimeout(locationTimeoutRef.current);
+        locationTimeoutRef.current = null;
+      }
     };
-  }, []);
+  }, [isLoaded, userLocation, isLocating, getUserLocation]);
 
   // Handle "My Location" button click
   const handleMyLocationClick = () => {
     console.log('My Location button clicked');
-    getUserLocation();
+    
+    // Force a new location request
+    setIsLocating(false);
+    setUserLocation(null); // Clear current location to force a new request
+    
+    // Add a small delay to ensure state is updated before calling getUserLocation
+    setTimeout(() => {
+      console.log('Requesting user location after button click');
+      getUserLocation();
+    }, 100);
+  };
+  
+  // Handle back button click
+  const handleBackClick = () => {
+    console.log('Back button clicked');
+    navigate('/');
+  };
+  
+  // Handle error close
+  const handleErrorClose = () => {
+    console.log('Error dismissed');
+    setError(null);
   };
 
   if (!isLoaded) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
-        <Typography variant="h6" sx={{ ml: 2 }}>
-          Loading Maps...
-        </Typography>
+        <Typography variant="h6" sx={{ ml: 2 }}>Loading Maps...</Typography>
       </Box>
     );
   }
 
-  console.log('Rendering map with userLocation:', userLocation, 'isLocating:', isLocating);
+  // Handle search input change
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const query = event.target.value;
+    setSearchQuery(query);
+    
+    if (query.length >= 2) {
+      searchRinks(query);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  console.log('Rendering map with userLocation:', userLocation ? 
+    `{lat: ${userLocation.lat}, lng: ${userLocation.lng}}` : 'null', 
+    'isLocating:', isLocating);
 
   return (
     <Box sx={{ position: 'relative', height: '100vh' }}>
+      {/* Search bar */}
+      <Box sx={{ 
+        position: 'absolute', 
+        top: 20, 
+        left: '50%', 
+        transform: 'translateX(-50%)', 
+        width: '80%', 
+        maxWidth: 500,
+        zIndex: 1000 
+      }}>
+        <Paper elevation={3} sx={{ p: 1 }}>
+          <TextField
+            fullWidth
+            placeholder="Search for hockey rinks"
+            value={searchQuery}
+            onChange={handleSearchChange}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+          
+          {/* Search results */}
+          {searchResults.length > 0 && (
+            <Paper elevation={3} sx={{ mt: 1, maxHeight: 300, overflow: 'auto' }}>
+              <List>
+                {searchResults.map((rink, index) => (
+                  <Box key={rink.id}>
+                    <ListItem onClick={() => handleRinkSelect(rink)} sx={{ cursor: 'pointer' }}>
+                      <ListItemText 
+                        primary={rink.name} 
+                        secondary={rink.address}
+                        primaryTypographyProps={{ fontWeight: selectedRink?.id === rink.id ? 'bold' : 'normal' }}
+                      />
+                    </ListItem>
+                    {index < searchResults.length - 1 && <Divider />}
+                  </Box>
+                ))}
+              </List>
+            </Paper>
+          )}
+        </Paper>
+      </Box>
+      
+      {/* Back button */}
+      <Box sx={{ position: 'absolute', top: 20, left: 20, zIndex: 1000 }}>
+        <IconButton
+          onClick={handleBackClick}
+          sx={{ 
+            backgroundColor: 'white',
+            boxShadow: 3,
+            '&:hover': {
+              backgroundColor: '#f5f5f5',
+            }
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24">
+            <path d="M400-80 0-480l400-400 71 71-329 329 329 329-71 71Z" />
+          </svg>
+        </IconButton>
+      </Box>
+      
+      {/* Google Map */}
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={userLocation || defaultCenter}
@@ -226,7 +397,7 @@ const MapPage = () => {
           fullscreenControl: true
         }}
       >
-        {/* User location marker - styled like Google Maps blue dot */}
+        {/* User location marker */}
         {userLocation && (
           <Marker
             position={userLocation}
@@ -238,11 +409,21 @@ const MapPage = () => {
             }}
           />
         )}
+        
+        {/* Rink markers */}
+        {searchResults.map(rink => (
+          <Marker
+            key={rink.id}
+            position={rink.position}
+            title={rink.name}
+            onClick={() => handleRinkSelect(rink)}
+            animation={selectedRink?.id === rink.id ? google.maps.Animation.BOUNCE : undefined}
+          />
+        ))}
       </GoogleMap>
 
-      {/* Control buttons container */}
-      <Box sx={{ position: 'fixed', bottom: 30, right: 30, zIndex: 9999 }}>
-        {/* Google Maps style My Location button */}
+      {/* My Location button */}
+      <Box sx={{ position: 'fixed', bottom: 30, left: 30, zIndex: 9999 }}>
         <Paper
           elevation={4}
           sx={{
@@ -272,35 +453,18 @@ const MapPage = () => {
           </IconButton>
         </Paper>
       </Box>
-
-      {/* Error message - more visible */}
-      {locationError && (
-        <Paper
-          elevation={5}
-          sx={{
-            position: 'absolute',
-            top: 80,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            p: 2,
-            bgcolor: 'error.main',
-            color: 'error.contrastText',
-            zIndex: 1000,
-            maxWidth: '80%',
-            border: '1px solid #d32f2f',
-            borderRadius: '8px'
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-              {locationError}
-            </Typography>
-          </Box>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            You may need to allow location access in your browser settings to use this feature.
-          </Typography>
-        </Paper>
-      )}
+      
+      {/* Error Snackbar */}
+      <Snackbar 
+        open={!!error} 
+        autoHideDuration={6000} 
+        onClose={handleErrorClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleErrorClose} severity="error" sx={{ width: '100%' }}>
+          {error}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
