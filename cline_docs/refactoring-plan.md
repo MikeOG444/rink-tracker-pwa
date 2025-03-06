@@ -46,10 +46,10 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
 ### Phase 2: Domain Model Implementation (Medium Priority)
 
 #### 1. Create Core Domain Models
-- [ ] Create `ActivityType.ts` enum
-- [ ] Create `Activity.ts` class with validation and factory methods
-- [ ] Create `UserRink.ts` class
-- [ ] Create `RinkVisit.ts` class
+- [x] Create `ActivityType.ts` enum
+- [x] Create `Activity.ts` class with validation and factory methods
+- [x] Create `UserRink.ts` class
+- [x] Create `RinkVisit.ts` class
 
 #### 2. Update Firestore Service
 - [ ] Refactor `firestore.ts` to use the new domain models
@@ -165,7 +165,7 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
   - Refactored main hook to use all these smaller hooks with proper separation of concerns
 
 ### In Progress
-- Moving to Phase 2: Domain Model Implementation
+- Updating Firestore Service to use the new domain models
 
 ### Completed Tasks (continued)
 - **2025-03-05**: Refactored `MapPage.tsx` to extract reusable hooks and components:
