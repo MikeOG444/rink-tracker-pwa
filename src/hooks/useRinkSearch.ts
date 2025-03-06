@@ -7,7 +7,6 @@ import {
   DEFAULT_SEARCH_DEBOUNCE_DELAY,
   MIN_QUERY_LENGTH
 } from './search';
-import { Rink } from '../services/places';
 
 interface UseRinkSearchProps {
   map: google.maps.Map | null;
