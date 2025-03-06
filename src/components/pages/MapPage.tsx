@@ -1,29 +1,21 @@
-import { useState, useEffect, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
+import { useEffect } from 'react';
+import { useJsApiLoader } from '@react-google-maps/api';
 import { Box } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
-import { getUserVisitedRinks } from '../../services/firestore';
 import RinkDetailsPanel from '../../components/map/RinkDetailsPanel';
 
 // Import custom hooks
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useRinkSearch } from '../../hooks/useRinkSearch';
+import { useVisitedRinks, useMapCallbacks } from '../../hooks/map';
+import { libraries } from '../map/constants/mapConfig';
 
 // Import components
 import SearchBar from '../map/components/SearchBar';
 import MapControls from '../map/components/MapControls';
-import RinkMarkers from '../map/components/RinkMarkers';
 import ErrorDisplay from '../map/components/ErrorDisplay';
 import LoadingScreen from '../map/components/LoadingScreen';
-
-// Map container styles
-const containerStyle = {
-  width: '100%',
-  height: '100vh'
-};
-
-// Libraries to load with the Google Maps API
-const libraries: any = ['places'];
+import MapContainer from '../map/components/MapContainer';
 
 const MapPage = () => {
   console.log('MapPage rendering');
@@ -36,13 +28,9 @@ const MapPage = () => {
     libraries
   });
 
-  // State for map
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  
-  // State for visited rinks
-  const [visitedRinks, setVisitedRinks] = useState<Set<string>>(new Set());
-
   // Use custom hooks
+  const { visitedRinks } = useVisitedRinks(user?.uid || null);
+
   const { 
     userLocation, 
     isLocating, 
@@ -51,7 +39,13 @@ const MapPage = () => {
     centerMapOnLocation, 
     handleMyLocationClick,
     defaultCenter
-  } = useUserLocation({ map });
+  } = useUserLocation({ map: null });
+
+  const { map, onLoad, onUnmount } = useMapCallbacks({
+    userLocation,
+    getUserLocation,
+    centerMapOnLocation
+  });
 
   const {
     searchQuery,
@@ -74,45 +68,6 @@ const MapPage = () => {
 
   // Combine errors from both hooks
   const error = locationError || searchError;
-
-  // Load visited rinks for the current user
-  useEffect(() => {
-    const loadVisitedRinks = async () => {
-      if (!user) return;
-      
-      try {
-        const rinks = await getUserVisitedRinks(user.uid);
-        const rinkIds = new Set(rinks.map(rink => rink.id));
-        setVisitedRinks(rinkIds);
-      } catch (error) {
-        console.error('Error loading visited rinks:', error);
-      }
-    };
-    
-    loadVisitedRinks();
-  }, [user]);
-
-  // Callback when map is loaded
-  const onLoad = useCallback((map: google.maps.Map) => {
-    console.log('Map loaded');
-    setMap(map);
-    
-    // If we already have the user location, center the map on it
-    if (userLocation) {
-      console.log('User location already available, centering map');
-      centerMapOnLocation(userLocation);
-    } else {
-      console.log('User location not available yet, requesting location');
-      // Request user location
-      getUserLocation();
-    }
-  }, [userLocation, getUserLocation, centerMapOnLocation]);
-  
-  // Callback when map is unmounted
-  const onUnmount = useCallback(() => {
-    console.log('Map unmounted');
-    setMap(null);
-  }, []);
 
   // Request user location when component mounts
   useEffect(() => {
@@ -147,29 +102,18 @@ const MapPage = () => {
         handleRinkSelect={handleRinkSelect}
       />
       
-      {/* Google Map */}
-      <GoogleMap
-        mapContainerStyle={containerStyle}
+      {/* Map Container Component */}
+      <MapContainer
+        map={map}
         center={userLocation || defaultCenter}
-        zoom={14}
+        userLocation={userLocation}
+        searchResults={searchResults}
+        selectedRink={selectedRink}
+        visitedRinks={visitedRinks}
         onLoad={onLoad}
         onUnmount={onUnmount}
-        options={{
-          zoomControl: true,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: true
-        }}
-      >
-        {/* Rink Markers Component */}
-        <RinkMarkers
-          userLocation={userLocation}
-          searchResults={searchResults}
-          selectedRink={selectedRink}
-          visitedRinks={visitedRinks}
-          handleMarkerClick={handleMarkerClick}
-        />
-      </GoogleMap>
+        handleMarkerClick={handleMarkerClick}
+      />
       
       {/* Rink Details Panel */}
       {showRinkDetails && detailedRink && (

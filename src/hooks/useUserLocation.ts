@@ -7,7 +7,7 @@ import { useTestLocation } from './location/useTestLocation';
 import { useTimeout } from './location/useTimeout';
 
 interface UseUserLocationProps {
-  map: google.maps.Map | null;
+  map?: google.maps.Map | null;
   useTestLocationInDev?: boolean;
 }
 
@@ -15,9 +15,9 @@ interface UseUserLocationProps {
  * Hook to handle user location detection and map centering
  */
 export const useUserLocation = ({ 
-  map, 
+  map = null, 
   useTestLocationInDev = true 
-}: UseUserLocationProps) => {
+}: UseUserLocationProps = {}) => {
   // State
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
   const [locationState, setLocationState] = useState<LocationState>(LocationState.IDLE);
