@@ -33,10 +33,10 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
 - [ ] Create `MapContainer` component
 
 #### 4. `useRinkSearch.ts` Decomposition
-- [ ] Create `useRinkSearchState()` hook
-- [ ] Create `useRinkSearchActions(map)` hook
-- [ ] Create `useRinkSelection(map)` hook
-- [ ] Extract `useDebounce` hook
+- [x] Create `useRinkSearchState()` hook
+- [x] Create `useRinkSearchActions(map)` hook
+- [x] Create `useRinkSelection(map)` hook
+- [x] Extract `useDebounce` hook
 
 #### 5. `SearchBar.tsx` Component Extraction
 - [ ] Extract `SearchInput` component
@@ -156,8 +156,16 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
   - Extracted the radius calculation logic into a separate function
   - Improved code organization and documentation
 
+- **2025-03-05**: Refactored `useRinkSearch.ts` to decompose it into smaller, focused hooks:
+  - Created `searchUtils.ts` with shared types, constants, and utility functions
+  - Created `useRinkSearchState()` hook to manage search-related state
+  - Created `useRinkSearchActions(map)` hook to handle search actions
+  - Created `useRinkSelection(map)` hook to handle rink selection
+  - Extracted `useDebounce` hook for debouncing search queries
+  - Refactored main hook to use all these smaller hooks with proper separation of concerns
+
 ### In Progress
-- Refactoring `useRinkSearch.ts` to decompose it into smaller, focused hooks
+- Refactoring `MapPage.tsx` to extract reusable hooks and components
 
 ### Issues and Blockers
 <!-- Document any issues or blockers encountered -->
