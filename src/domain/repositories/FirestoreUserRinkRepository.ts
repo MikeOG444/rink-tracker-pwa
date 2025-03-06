@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { UserRink } from "../models/UserRink";
 import { UserRinkRepository } from "./UserRinkRepository";
-import { Rink } from "../../services/places";
+import type { Rink } from "../../services/places";
 
 const USER_RINKS_COLLECTION = "user_rinks";
 const RINKS_COLLECTION = "rinks";

@@ -1,6 +1,6 @@
 import { UserRink } from '../models/UserRink';
 import { Repository } from './Repository';
-import { Rink } from '../../services/places';
+import type { Rink } from '../../services/places';
 
 /**
  * Repository interface for UserRink entities

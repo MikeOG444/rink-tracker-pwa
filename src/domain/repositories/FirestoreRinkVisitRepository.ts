@@ -16,7 +16,7 @@ import {
 import { RinkVisit } from "../models/RinkVisit";
 import { RinkVisitRepository } from "./RinkVisitRepository";
 import ActivityType from "../models/ActivityType";
-import { Rink } from "../../services/places";
+import type { Rink } from "../../services/places";
 
 const RINK_VISITS_COLLECTION = "rink_visits";
 const RINKS_COLLECTION = "rinks";

@@ -1,4 +1,4 @@
-import { Rink } from '../../services/places';
+import type { Rink } from '../../services/places';
 
 /**
  * Interface representing the data structure of a UserRink
