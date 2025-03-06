@@ -11,7 +11,11 @@ import {
   deleteDoc, 
   getDoc, 
   setDoc,
-  limit
+  limit,
+  QueryConstraint,
+  DocumentData,
+  FirestoreError,
+  DocumentSnapshot
 } from "firebase/firestore";
 import { RinkVisit } from "../models/RinkVisit";
 import { RinkVisitRepository } from "./RinkVisitRepository";
@@ -22,48 +26,180 @@ const RINK_VISITS_COLLECTION = "rink_visits";
 const RINKS_COLLECTION = "rinks";
 
 /**
+ * Type for a function that handles errors
+ */
+type ErrorHandler<T> = (error: unknown, errorMessage: string) => T;
+
+/**
  * Firestore implementation of the RinkVisitRepository interface
  */
 export class FirestoreRinkVisitRepository implements RinkVisitRepository {
+  /**
+   * Handle errors in a consistent way
+   * @param error The error that occurred
+   * @param errorMessage The error message to log
+   * @param defaultValue The default value to return
+   * @returns The default value
+   */
+  private handleError<T>(error: unknown, errorMessage: string, defaultValue: T): T {
+    console.error(`❌ ${errorMessage}:`, error);
+    return defaultValue;
+  }
+  
+  /**
+   * Execute a query with error handling
+   * @param queryFn The query function to execute
+   * @param errorMessage The error message to log if the query fails
+   * @param defaultValue The default value to return if the query fails
+   * @returns The result of the query or the default value if the query fails
+   */
+  private async executeQuery<T>(
+    queryFn: () => Promise<T>,
+    errorMessage: string,
+    defaultValue: T
+  ): Promise<T> {
+    try {
+      return await queryFn();
+    } catch (error) {
+      return this.handleError(error, errorMessage, defaultValue);
+    }
+  }
+  
+  /**
+   * Map a Firestore document to a RinkVisit
+   * @param doc The Firestore document
+   * @returns The RinkVisit
+   */
+  private mapDocumentToVisit(docId: string, data: DocumentData): RinkVisit {
+    return RinkVisit.fromFirestore(docId, data);
+  }
+  
+  /**
+   * Get rink data for a visit
+   * @param rinkId The rink ID
+   * @returns A promise that resolves to the rink data or null if not found
+   */
+  private async getRinkData(rinkId: string): Promise<Partial<Rink> | null> {
+    try {
+      const rinkRef = doc(db, RINKS_COLLECTION, rinkId);
+      const rinkDoc = await getDoc(rinkRef);
+      
+      if (!rinkDoc.exists()) {
+        return null;
+      }
+      
+      const rinkData = rinkDoc.data();
+      return {
+        id: rinkData.id as string,
+        name: rinkData.name as string,
+        address: rinkData.address as string,
+        position: rinkData.position as { lat: number, lng: number },
+        photo: rinkData.photo as string,
+        rating: rinkData.rating as number
+      };
+    } catch (error) {
+      console.error("❌ Error getting rink data:", error);
+      return null;
+    }
+  }
+  
+  /**
+   * Find visits by query constraints
+   * @param constraints The query constraints
+   * @param errorMessage The error message to log if the query fails
+   * @returns A promise that resolves to an array of visits
+   */
+  private async findVisitsByConstraints(
+    constraints: QueryConstraint[],
+    errorMessage: string
+  ): Promise<RinkVisit[]> {
+    return this.executeQuery(
+      async () => {
+        const q = query(
+          collection(db, RINK_VISITS_COLLECTION),
+          ...constraints
+        );
+        
+        const snapshot = await getDocs(q);
+        
+        return snapshot.docs.map(doc => 
+          this.mapDocumentToVisit(doc.id, doc.data())
+        );
+      },
+      errorMessage,
+      []
+    );
+  }
+  
+  /**
+   * Get a visit by ID with error handling
+   * @param visitId The visit ID
+   * @param errorMessage The error message to log if the operation fails
+   * @returns A promise that resolves to the visit or null if not found
+   */
+  private async getVisitById(
+    visitId: string,
+    errorMessage: string
+  ): Promise<RinkVisit | null> {
+    return this.executeQuery(
+      async () => {
+        const visitRef = doc(db, RINK_VISITS_COLLECTION, visitId);
+        const visitDoc = await getDoc(visitRef);
+        
+        if (!visitDoc.exists()) {
+          return null;
+        }
+        
+        const visit = this.mapDocumentToVisit(visitId, visitDoc.data());
+        
+        // Fetch the rink details if available
+        if (visit.rinkId) {
+          const rinkData = await this.getRinkData(visit.rinkId);
+          if (rinkData) {
+            visit.rinkData = rinkData as Rink;
+          }
+        }
+        
+        return visit;
+      },
+      errorMessage,
+      null
+    );
+  }
+  
+  /**
+   * Update a visit with a function and save it
+   * @param visitId The visit ID
+   * @param updateFn The function to update the visit
+   * @param errorMessage The error message to log if the operation fails
+   * @returns A promise that resolves to the updated visit
+   */
+  private async updateVisitAndSave(
+    visitId: string,
+    updateFn: (visit: RinkVisit) => void,
+    errorMessage: string
+  ): Promise<RinkVisit> {
+    try {
+      const visit = await this.findById(visitId);
+      
+      if (!visit) {
+        throw new Error(`Visit not found with ID: ${visitId}`);
+      }
+      
+      updateFn(visit);
+      return this.save(visit);
+    } catch (error) {
+      console.error(`❌ ${errorMessage}:`, error);
+      throw error;
+    }
+  }
   /**
    * Find a visit by its ID
    * @param id The visit ID
    * @returns A promise that resolves to the visit or null if not found
    */
   async findById(id: string): Promise<RinkVisit | null> {
-    try {
-      const visitRef = doc(db, RINK_VISITS_COLLECTION, id);
-      const visitDoc = await getDoc(visitRef);
-      
-      if (!visitDoc.exists()) {
-        return null;
-      }
-      
-      const visit = RinkVisit.fromFirestore(id, visitDoc.data());
-      
-      // Fetch the rink details if available
-      if (visit.rinkId) {
-        const rinkRef = doc(db, RINKS_COLLECTION, visit.rinkId);
-        const rinkDoc = await getDoc(rinkRef);
-        
-        if (rinkDoc.exists()) {
-          const rinkData = rinkDoc.data();
-          visit.rinkData = {
-            id: rinkData.id as string,
-            name: rinkData.name as string,
-            address: rinkData.address as string,
-            position: rinkData.position as { lat: number, lng: number },
-            photo: rinkData.photo as string,
-            rating: rinkData.rating as number
-          };
-        }
-      }
-      
-      return visit;
-    } catch (error) {
-      console.error("❌ Error finding visit by ID:", error);
-      return null;
-    }
+    return this.getVisitById(id, "Error finding visit by ID");
   }
   
   /**
@@ -71,21 +207,10 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to an array of visits
    */
   async findAll(): Promise<RinkVisit[]> {
-    try {
-      const q = query(
-        collection(db, RINK_VISITS_COLLECTION),
-        orderBy("date", "desc")
-      );
-      
-      const snapshot = await getDocs(q);
-      
-      return snapshot.docs.map(doc => 
-        RinkVisit.fromFirestore(doc.id, doc.data())
-      );
-    } catch (error) {
-      console.error("❌ Error finding all visits:", error);
-      return [];
-    }
+    return this.findVisitsByConstraints(
+      [orderBy("date", "desc")],
+      "Error finding all visits"
+    );
   }
   
   /**
@@ -94,52 +219,33 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to an array of visits
    */
   async findByUserId(userId: string): Promise<RinkVisit[]> {
-    try {
-      console.log("📡 Fetching visits for user:", userId);
-      const q = query(
-        collection(db, RINK_VISITS_COLLECTION),
+    console.log("📡 Fetching visits for user:", userId);
+    
+    const visits = await this.findVisitsByConstraints(
+      [
         where("userId", "==", userId),
         orderBy("date", "desc")
-      );
-      
-      const snapshot = await getDocs(q);
-      
-      if (snapshot.empty) {
-        console.warn("⚠️ No visits found for user:", userId);
-        return [];
-      }
-      
-      const visits = await Promise.all(snapshot.docs.map(async docSnapshot => {
-        const visit = RinkVisit.fromFirestore(docSnapshot.id, docSnapshot.data());
-        
-        // Fetch the rink details if available
-        if (visit.rinkId) {
-          const rinkRef = doc(db, RINKS_COLLECTION, visit.rinkId);
-          const rinkDoc = await getDoc(rinkRef);
-          
-          if (rinkDoc.exists()) {
-            const rinkData = rinkDoc.data();
-            visit.rinkData = {
-              id: rinkData.id as string,
-              name: rinkData.name as string,
-              address: rinkData.address as string,
-              position: rinkData.position as { lat: number, lng: number },
-              photo: rinkData.photo as string,
-              rating: rinkData.rating as number
-            };
-          }
-        }
-        
-        return visit;
-      }));
-      
+      ],
+      "Error finding visits by user ID"
+    );
+    
+    if (visits.length === 0) {
+      console.warn("⚠️ No visits found for user:", userId);
+    } else {
       console.log("✅ Visits retrieved from Firestore:", visits.length);
-      
-      return visits;
-    } catch (error) {
-      console.error("❌ Error finding visits by user ID:", error);
-      return [];
     }
+    
+    // Fetch rink data for each visit
+    for (const visit of visits) {
+      if (visit.rinkId) {
+        const rinkData = await this.getRinkData(visit.rinkId);
+        if (rinkData) {
+          visit.rinkData = rinkData as Rink;
+        }
+      }
+    }
+    
+    return visits;
   }
   
   /**
@@ -148,22 +254,13 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to an array of visits
    */
   async findByRinkId(rinkId: string): Promise<RinkVisit[]> {
-    try {
-      const q = query(
-        collection(db, RINK_VISITS_COLLECTION),
+    return this.findVisitsByConstraints(
+      [
         where("rinkId", "==", rinkId),
         orderBy("date", "desc")
-      );
-      
-      const snapshot = await getDocs(q);
-      
-      return snapshot.docs.map(doc => 
-        RinkVisit.fromFirestore(doc.id, doc.data())
-      );
-    } catch (error) {
-      console.error("❌ Error finding visits by rink ID:", error);
-      return [];
-    }
+      ],
+      "Error finding visits by rink ID"
+    );
   }
   
   /**
@@ -173,23 +270,14 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to an array of visits
    */
   async findByUserIdAndRinkId(userId: string, rinkId: string): Promise<RinkVisit[]> {
-    try {
-      const q = query(
-        collection(db, RINK_VISITS_COLLECTION),
+    return this.findVisitsByConstraints(
+      [
         where("userId", "==", userId),
         where("rinkId", "==", rinkId),
         orderBy("date", "desc")
-      );
-      
-      const snapshot = await getDocs(q);
-      
-      return snapshot.docs.map(doc => 
-        RinkVisit.fromFirestore(doc.id, doc.data())
-      );
-    } catch (error) {
-      console.error("❌ Error finding visits by user ID and rink ID:", error);
-      return [];
-    }
+      ],
+      "Error finding visits by user ID and rink ID"
+    );
   }
   
   /**
@@ -198,22 +286,13 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to an array of visits
    */
   async findByActivityType(activityType: ActivityType): Promise<RinkVisit[]> {
-    try {
-      const q = query(
-        collection(db, RINK_VISITS_COLLECTION),
+    return this.findVisitsByConstraints(
+      [
         where("activityType", "==", activityType),
         orderBy("date", "desc")
-      );
-      
-      const snapshot = await getDocs(q);
-      
-      return snapshot.docs.map(doc => 
-        RinkVisit.fromFirestore(doc.id, doc.data())
-      );
-    } catch (error) {
-      console.error("❌ Error finding visits by activity type:", error);
-      return [];
-    }
+      ],
+      "Error finding visits by activity type"
+    );
   }
   
   /**
@@ -223,23 +302,14 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to an array of visits
    */
   async findByUserIdAndActivityType(userId: string, activityType: ActivityType): Promise<RinkVisit[]> {
-    try {
-      const q = query(
-        collection(db, RINK_VISITS_COLLECTION),
+    return this.findVisitsByConstraints(
+      [
         where("userId", "==", userId),
         where("activityType", "==", activityType),
         orderBy("date", "desc")
-      );
-      
-      const snapshot = await getDocs(q);
-      
-      return snapshot.docs.map(doc => 
-        RinkVisit.fromFirestore(doc.id, doc.data())
-      );
-    } catch (error) {
-      console.error("❌ Error finding visits by user ID and activity type:", error);
-      return [];
-    }
+      ],
+      "Error finding visits by user ID and activity type"
+    );
   }
   
   /**
@@ -247,23 +317,14 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to an array of public visits
    */
   async findPublicVisits(): Promise<RinkVisit[]> {
-    try {
-      const q = query(
-        collection(db, RINK_VISITS_COLLECTION),
+    return this.findVisitsByConstraints(
+      [
         where("isPublic", "==", true),
         orderBy("date", "desc"),
         limit(50) // Limit to 50 most recent public visits
-      );
-      
-      const snapshot = await getDocs(q);
-      
-      return snapshot.docs.map(doc => 
-        RinkVisit.fromFirestore(doc.id, doc.data())
-      );
-    } catch (error) {
-      console.error("❌ Error finding public visits:", error);
-      return [];
-    }
+      ],
+      "Error finding public visits"
+    );
   }
   
   /**
@@ -272,22 +333,47 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to an array of public visits
    */
   async findPublicVisitsByUserId(userId: string): Promise<RinkVisit[]> {
-    try {
-      const q = query(
-        collection(db, RINK_VISITS_COLLECTION),
+    return this.findVisitsByConstraints(
+      [
         where("userId", "==", userId),
         where("isPublic", "==", true),
         orderBy("date", "desc")
-      );
-      
-      const snapshot = await getDocs(q);
-      
-      return snapshot.docs.map(doc => 
-        RinkVisit.fromFirestore(doc.id, doc.data())
-      );
-    } catch (error) {
-      console.error("❌ Error finding public visits by user ID:", error);
-      return [];
+      ],
+      "Error finding public visits by user ID"
+    );
+  }
+  
+  /**
+   * Save rink data to the global rinks collection
+   * @param rinkId The rink ID
+   * @param rinkData The rink data
+   * @returns A promise that resolves when the rink data is saved
+   */
+  private async saveRinkData(rinkId: string, rinkData: Rink): Promise<void> {
+    const rinkRef = doc(db, RINKS_COLLECTION, rinkId);
+    const rinkDoc = await getDoc(rinkRef);
+    
+    const rinkDataToSave = {
+      id: rinkId,
+      name: rinkData.name,
+      address: rinkData.address,
+      position: rinkData.position,
+      photo: rinkData.photo,
+      rating: rinkData.rating,
+      updatedAt: new Date().toISOString()
+    };
+    
+    if (!rinkDoc.exists()) {
+      // Save basic rink info to the global rinks collection
+      await setDoc(rinkRef, {
+        ...rinkDataToSave,
+        createdAt: new Date().toISOString()
+      });
+      console.log("✅ Rink added to global collection:", rinkData.name);
+    } else {
+      // Update the rink info in case anything has changed
+      await updateDoc(rinkRef, rinkDataToSave);
+      console.log("✅ Rink updated in global collection:", rinkData.name);
     }
   }
   
@@ -297,55 +383,32 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to the saved visit
    */
   async save(visit: RinkVisit): Promise<RinkVisit> {
-    try {
-      // Save the rink data if provided
-      if (visit.rinkData) {
-        const rinkRef = doc(db, RINKS_COLLECTION, visit.rinkId);
-        const rinkDoc = await getDoc(rinkRef);
-        
-        const rinkData = {
-          id: visit.rinkId,
-          name: visit.rinkData.name,
-          address: visit.rinkData.address,
-          position: visit.rinkData.position,
-          photo: visit.rinkData.photo,
-          rating: visit.rinkData.rating,
-          updatedAt: new Date().toISOString()
-        };
-        
-        if (!rinkDoc.exists()) {
-          // Save basic rink info to the global rinks collection
-          await setDoc(rinkRef, {
-            ...rinkData,
-            createdAt: new Date().toISOString()
-          });
-          console.log("✅ Rink added to global collection:", visit.rinkData.name);
-        } else {
-          // Update the rink info in case anything has changed
-          await updateDoc(rinkRef, rinkData);
-          console.log("✅ Rink updated in global collection:", visit.rinkData.name);
+    return this.executeQuery(
+      async () => {
+        // Save the rink data if provided
+        if (visit.rinkData) {
+          await this.saveRinkData(visit.rinkId, visit.rinkData);
         }
-      }
-      
-      const visitData = visit.toObject();
-      
-      if (visit.id) {
-        // Update existing visit
-        const visitRef = doc(db, RINK_VISITS_COLLECTION, visit.id);
-        await updateDoc(visitRef, visitData);
-        console.log("✅ Visit updated in Firestore:", visit.id);
-      } else {
-        // Create new visit
-        const docRef = await addDoc(collection(db, RINK_VISITS_COLLECTION), visitData);
-        visit.id = docRef.id;
-        console.log("✅ Visit added to Firestore with ID:", docRef.id);
-      }
-      
-      return visit;
-    } catch (error) {
-      console.error("❌ Error saving visit:", error);
-      throw error;
-    }
+        
+        const visitData = visit.toObject();
+        
+        if (visit.id) {
+          // Update existing visit
+          const visitRef = doc(db, RINK_VISITS_COLLECTION, visit.id);
+          await updateDoc(visitRef, visitData);
+          console.log("✅ Visit updated in Firestore:", visit.id);
+        } else {
+          // Create new visit
+          const docRef = await addDoc(collection(db, RINK_VISITS_COLLECTION), visitData);
+          visit.id = docRef.id;
+          console.log("✅ Visit added to Firestore with ID:", docRef.id);
+        }
+        
+        return visit;
+      },
+      "Error saving visit",
+      visit
+    );
   }
   
   /**
@@ -354,15 +417,16 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to true if the visit was deleted, false otherwise
    */
   async delete(id: string): Promise<boolean> {
-    try {
-      const visitRef = doc(db, RINK_VISITS_COLLECTION, id);
-      await deleteDoc(visitRef);
-      console.log(`Visit ${id} deleted successfully.`);
-      return true;
-    } catch (error) {
-      console.error("❌ Error deleting visit:", error);
-      return false;
-    }
+    return this.executeQuery(
+      async () => {
+        const visitRef = doc(db, RINK_VISITS_COLLECTION, id);
+        await deleteDoc(visitRef);
+        console.log(`Visit ${id} deleted successfully.`);
+        return true;
+      },
+      "Error deleting visit",
+      false
+    );
   }
   
   /**
@@ -372,19 +436,11 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to the updated visit
    */
   async addPhoto(visitId: string, photoUrl: string): Promise<RinkVisit> {
-    try {
-      const visit = await this.findById(visitId);
-      
-      if (!visit) {
-        throw new Error(`Visit not found with ID: ${visitId}`);
-      }
-      
-      visit.addPhoto(photoUrl);
-      return this.save(visit);
-    } catch (error) {
-      console.error("❌ Error adding photo to visit:", error);
-      throw error;
-    }
+    return this.updateVisitAndSave(
+      visitId,
+      (visit) => visit.addPhoto(photoUrl),
+      "Error adding photo to visit"
+    );
   }
   
   /**
@@ -394,19 +450,11 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to the updated visit
    */
   async removePhoto(visitId: string, photoUrl: string): Promise<RinkVisit> {
-    try {
-      const visit = await this.findById(visitId);
-      
-      if (!visit) {
-        throw new Error(`Visit not found with ID: ${visitId}`);
-      }
-      
-      visit.removePhoto(photoUrl);
-      return this.save(visit);
-    } catch (error) {
-      console.error("❌ Error removing photo from visit:", error);
-      throw error;
-    }
+    return this.updateVisitAndSave(
+      visitId,
+      (visit) => visit.removePhoto(photoUrl),
+      "Error removing photo from visit"
+    );
   }
   
   /**
@@ -416,19 +464,11 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to the updated visit
    */
   async updateRating(visitId: string, rating: number): Promise<RinkVisit> {
-    try {
-      const visit = await this.findById(visitId);
-      
-      if (!visit) {
-        throw new Error(`Visit not found with ID: ${visitId}`);
-      }
-      
-      visit.updateRating(rating);
-      return this.save(visit);
-    } catch (error) {
-      console.error("❌ Error updating rating for visit:", error);
-      throw error;
-    }
+    return this.updateVisitAndSave(
+      visitId,
+      (visit) => visit.updateRating(rating),
+      "Error updating rating for visit"
+    );
   }
   
   /**
@@ -437,19 +477,11 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
    * @returns A promise that resolves to the updated visit
    */
   async togglePublic(visitId: string): Promise<RinkVisit> {
-    try {
-      const visit = await this.findById(visitId);
-      
-      if (!visit) {
-        throw new Error(`Visit not found with ID: ${visitId}`);
-      }
-      
-      visit.togglePublic();
-      return this.save(visit);
-    } catch (error) {
-      console.error("❌ Error toggling public status for visit:", error);
-      throw error;
-    }
+    return this.updateVisitAndSave(
+      visitId,
+      (visit) => visit.togglePublic(),
+      "Error toggling public status for visit"
+    );
   }
 }
 
