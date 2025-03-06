@@ -183,6 +183,14 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
   - Organized components in a dedicated directory structure
   - Improved component composition and separation of concerns
 
+- **2025-03-05**: Implemented core domain models for the application:
+  - Created `ActivityType.ts` enum with categorized activity types
+  - Created `Activity.ts` class with validation and factory methods
+  - Created `UserRink.ts` class to represent a user's relationship with a rink
+  - Created `RinkVisit.ts` class to represent a specific visit to a rink
+  - Added proper TypeScript typing and validation
+  - Implemented Firestore serialization/deserialization methods
+
 ### Issues and Blockers
 <!-- Document any issues or blockers encountered -->
 
