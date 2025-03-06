@@ -23,10 +23,6 @@ import type { Rink } from "../../services/places";
 const RINK_VISITS_COLLECTION = "rink_visits";
 const RINKS_COLLECTION = "rinks";
 
-/**
- * Type for a function that handles errors
- */
-type ErrorHandler<T> = (error: unknown, errorMessage: string) => T;
 
 /**
  * Firestore implementation of the RinkVisitRepository interface
