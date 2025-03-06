@@ -103,7 +103,6 @@ const MapPage = () => {
       
       {/* Map Container Component */}
       <MapContainer
-        map={map}
         center={userLocation || defaultCenter}
         userLocation={userLocation}
         searchResults={searchResults}

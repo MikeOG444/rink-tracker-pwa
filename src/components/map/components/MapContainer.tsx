@@ -5,7 +5,6 @@ import RinkMarkers from './RinkMarkers';
 import { Rink } from '../../../services/places';
 
 interface MapContainerProps {
-  map: google.maps.Map | null;
   center: google.maps.LatLngLiteral;
   userLocation: google.maps.LatLngLiteral | null;
   searchResults: Rink[];
@@ -20,7 +19,6 @@ interface MapContainerProps {
  * Component to render the Google Map and its markers
  */
 const MapContainer: React.FC<MapContainerProps> = ({
-  map,
   center,
   userLocation,
   searchResults,
