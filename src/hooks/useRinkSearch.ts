@@ -43,7 +43,7 @@ export const useRinkSearch = ({ map }: UseRinkSearchProps) => {
   // Use debounced search query
   const debouncedQuery = useDebounce(searchState.searchQuery, DEFAULT_SEARCH_DEBOUNCE_DELAY);
   
-  // Handle search input change
+  // Handle search input change - this updates the query state
   const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const query = event.target.value;
     searchState.setSearchQuery(query);

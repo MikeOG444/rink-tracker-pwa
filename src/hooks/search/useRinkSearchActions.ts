@@ -99,19 +99,6 @@ export const useRinkSearchActions = ({
   }, [map, setSearchResults, setSearchState, setError, setShowSearchResults]);
   
   /**
-   * Handle search input change
-   */
-  const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const query = event.target.value;
-    
-    if (query.length >= 2) {
-      searchRinks(query);
-    } else {
-      resetSearch();
-    }
-  }, [searchRinks, resetSearch]);
-  
-  /**
    * Handle error close
    */
   const handleErrorClose = useCallback(() => {
@@ -122,7 +109,6 @@ export const useRinkSearchActions = ({
   return {
     searchRinks,
     findRinksInView,
-    handleSearchChange,
     handleErrorClose
   };
 };
