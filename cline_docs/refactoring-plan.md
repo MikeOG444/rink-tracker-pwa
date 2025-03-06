@@ -27,10 +27,10 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
 - [x] Add proper error typing and consistent error handling
 
 #### 3. `MapPage.tsx` Refinement
-- [ ] Extract `useVisitedRinks(userId)` custom hook
-- [ ] Create `useMapCallbacks(map, userLocation)` hook
-- [ ] Extract map configuration into a separate constant
-- [ ] Create `MapContainer` component
+- [x] Extract `useVisitedRinks(userId)` custom hook
+- [x] Create `useMapCallbacks(map, userLocation)` hook
+- [x] Extract map configuration into a separate constant
+- [x] Create `MapContainer` component
 
 #### 4. `useRinkSearch.ts` Decomposition
 - [x] Create `useRinkSearchState()` hook
@@ -165,7 +165,16 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
   - Refactored main hook to use all these smaller hooks with proper separation of concerns
 
 ### In Progress
-- Refactoring `MapPage.tsx` to extract reusable hooks and components
+- Refactoring `SearchBar.tsx` to extract smaller, focused components
+
+### Completed Tasks (continued)
+- **2025-03-05**: Refactored `MapPage.tsx` to extract reusable hooks and components:
+  - Created `mapConfig.ts` with map configuration constants
+  - Created `useVisitedRinks.ts` hook to manage visited rinks state
+  - Created `useMapCallbacks.ts` hook to handle map-related callbacks
+  - Created `MapContainer.tsx` component to handle map rendering
+  - Updated `useUserLocation.ts` to handle circular dependencies
+  - Simplified the main component by using the extracted hooks and components
 
 ### Issues and Blockers
 <!-- Document any issues or blockers encountered -->
