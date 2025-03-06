@@ -13,9 +13,7 @@ import {
   setDoc,
   limit,
   QueryConstraint,
-  DocumentData,
-  FirestoreError,
-  DocumentSnapshot
+  DocumentData
 } from "firebase/firestore";
 import { RinkVisit } from "../models/RinkVisit";
 import { RinkVisitRepository } from "./RinkVisitRepository";
