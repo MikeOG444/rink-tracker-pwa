@@ -1,0 +1,168 @@
+# Technical Debt Refactoring Plan
+
+## Overview
+This document outlines the plan for addressing technical debt in the Rink Tracker PWA. The goal is to improve code quality, maintainability, and performance without changing functionality.
+
+## Branches
+- **Main Branch**: Production code
+- **tech-debt-refactoring**: Branch for all refactoring work
+
+## Phases and Tasks
+
+### Phase 1: Fix Complex Methods (High Priority)
+
+#### 1. `useUserLocation.ts` Refactoring
+- [x] Extract `checkGeolocationSupport()` function (implemented as useGeolocationSupport hook)
+- [x] Extract `useHardcodedLocation()` function (implemented as useTestLocation hook)
+- [x] Extract `requestBrowserLocation()` function (implemented as useBrowserGeolocation hook)
+- [x] Extract `compareAndUpdateLocation()` function (implemented as areLocationsSignificantlyDifferent utility)
+- [x] Implement early returns to flatten nested conditionals
+- [x] Create a state machine for location states (implemented with LocationState enum)
+
+#### 2. `placesAPI.ts` Refactoring
+- [ ] Create `createPlacesService(map)` helper function
+- [ ] Extract `handlePlacesAPIResponse(results, status, resolve, reject)` function
+- [ ] Create `calculateMapRadius(bounds)` function
+- [ ] Implement `executeGooglePlacesRequest(requestFn, params)` wrapper
+- [ ] Add proper error typing and consistent error handling
+
+#### 3. `MapPage.tsx` Refinement
+- [ ] Extract `useVisitedRinks(userId)` custom hook
+- [ ] Create `useMapCallbacks(map, userLocation)` hook
+- [ ] Extract map configuration into a separate constant
+- [ ] Create `MapContainer` component
+
+#### 4. `useRinkSearch.ts` Decomposition
+- [ ] Create `useRinkSearchState()` hook
+- [ ] Create `useRinkSearchActions(map)` hook
+- [ ] Create `useRinkSelection(map)` hook
+- [ ] Extract `useDebounce` hook
+
+#### 5. `SearchBar.tsx` Component Extraction
+- [ ] Extract `SearchInput` component
+- [ ] Extract `SearchResultsList` component
+- [ ] Extract `NoResultsMessage` component
+
+### Phase 2: Domain Model Implementation (Medium Priority)
+
+#### 1. Create Core Domain Models
+- [ ] Create `ActivityType.ts` enum
+- [ ] Create `Activity.ts` class with validation and factory methods
+- [ ] Create `UserRink.ts` class
+- [ ] Create `RinkVisit.ts` class
+
+#### 2. Update Firestore Service
+- [ ] Refactor `firestore.ts` to use the new domain models
+- [ ] Create repository pattern implementations
+- [ ] Implement data mappers for Firestore <-> Domain model conversion
+
+### Phase 3: Infrastructure Improvements (Medium Priority)
+
+#### 1. Error Handling Strategy
+- [ ] Create centralized `ErrorHandler` service
+- [ ] Implement custom error classes
+- [ ] Replace direct console.error calls with structured logging
+- [ ] Add React error boundaries
+
+#### 2. Logging Service
+- [ ] Implement `LoggingService` with different log levels
+- [ ] Add context to logs
+- [ ] Configure production vs development logging
+- [ ] Add ability to send critical logs to a monitoring service
+
+#### 3. State Management Improvements
+- [ ] Evaluate React Context vs Redux
+- [ ] Create a dedicated state slice for rink-related data
+- [ ] Implement proper state normalization
+- [ ] Add selectors for derived state
+
+### Phase 4: Testing Infrastructure (Medium-Low Priority)
+
+#### 1. Unit Testing Framework
+- [ ] Set up Jest and React Testing Library
+- [ ] Create test utilities
+- [ ] Implement mock services
+
+#### 2. Component Tests
+- [ ] Write tests for extracted components
+- [ ] Test custom hooks in isolation
+- [ ] Create snapshot tests for UI components
+
+#### 3. Integration Tests
+- [ ] Test interactions between components
+- [ ] Test data flow
+- [ ] Verify error handling paths
+
+### Phase 5: Performance Optimization (Low Priority)
+
+#### 1. Memoization Strategy
+- [ ] Audit and optimize React.memo usage
+- [ ] Implement useMemo for expensive calculations
+- [ ] Use useCallback consistently
+
+#### 2. Code Splitting
+- [ ] Implement lazy loading for routes
+- [ ] Split vendor bundles
+- [ ] Analyze and optimize bundle size
+
+#### 3. Rendering Optimization
+- [ ] Implement virtualization for long lists
+- [ ] Optimize re-renders with proper key usage
+- [ ] Add performance monitoring
+
+## Implementation Timeline
+
+### Sprint 1: Foundation (1-2 weeks)
+- Set up error handling and logging infrastructure
+- Create core domain models
+- Extract smaller components from complex ones
+- Implement basic unit tests
+
+### Sprint 2: Core Refactoring (1-2 weeks)
+- Refactor useUserLocation.ts
+- Refactor placesAPI.ts
+- Update firestore.ts to use domain models
+- Add integration tests
+
+### Sprint 3: Advanced Refactoring (1-2 weeks)
+- Refactor useRinkSearch.ts
+- Implement state management improvements
+- Complete component extraction
+- Add performance monitoring
+
+### Sprint 4: Optimization & Cleanup (1 week)
+- Implement performance optimizations
+- Complete test coverage
+- Final code review and cleanup
+- Documentation updates
+
+## Progress Tracking
+
+### Completed Tasks
+- **2025-03-05**: Refactored `useUserLocation.ts` to use a state machine approach and extracted smaller, focused hooks:
+  - Created `locationUtils.ts` with shared types, constants, and utility functions
+  - Created `useGeolocationSupport.ts` to check browser support for geolocation
+  - Created `useBrowserGeolocation.ts` to handle browser geolocation API
+  - Created `useMapCenter.ts` to handle map centering functionality
+  - Created `useTestLocation.ts` to provide test/hardcoded locations
+  - Created `useTimeout.ts` to manage timeouts
+  - Refactored main hook to use all these smaller hooks with a state machine approach
+
+### In Progress
+- Refactoring `placesAPI.ts` to extract common functionality and improve error handling
+
+### Issues and Blockers
+<!-- Document any issues or blockers encountered -->
+
+## Testing Strategy
+- Run existing tests after each significant change
+- Add new tests for refactored components
+- Manually verify functionality in the browser
+- Compare behavior before and after refactoring
+
+## Risk Mitigation
+1. Make small, incremental changes
+2. Commit frequently with descriptive messages
+3. Test thoroughly after each change
+4. Document any issues encountered
+5. Revert changes if necessary
