@@ -53,8 +53,8 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
 
 #### 2. Update Firestore Service
 - [ ] Refactor `firestore.ts` to use the new domain models
-- [ ] Create repository pattern implementations
-- [ ] Implement data mappers for Firestore <-> Domain model conversion
+- [x] Create repository pattern implementations
+- [x] Implement data mappers for Firestore <-> Domain model conversion
 
 ### Phase 3: Infrastructure Improvements (Medium Priority)
 
@@ -190,6 +190,14 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
   - Created `RinkVisit.ts` class to represent a specific visit to a rink
   - Added proper TypeScript typing and validation
   - Implemented Firestore serialization/deserialization methods
+
+- **2025-03-05**: Implemented repository pattern for domain models:
+  - Created generic `Repository` and `UserRepository` interfaces
+  - Created specific repository interfaces for each domain model
+  - Implemented Firestore repositories for each domain model
+  - Added data mapping between Firestore and domain models
+  - Implemented offline support for activities
+  - Added proper error handling and logging
 
 ### Issues and Blockers
 <!-- Document any issues or blockers encountered -->
