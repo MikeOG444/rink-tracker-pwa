@@ -20,11 +20,11 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
 - [x] Create a state machine for location states (implemented with LocationState enum)
 
 #### 2. `placesAPI.ts` Refactoring
-- [ ] Create `createPlacesService(map)` helper function
-- [ ] Extract `handlePlacesAPIResponse(results, status, resolve, reject)` function
-- [ ] Create `calculateMapRadius(bounds)` function
-- [ ] Implement `executeGooglePlacesRequest(requestFn, params)` wrapper
-- [ ] Add proper error typing and consistent error handling
+- [x] Create `createPlacesService(map)` helper function
+- [x] Extract `handlePlacesAPIResponse(results, status, resolve, reject)` function
+- [x] Create `calculateMapRadius(bounds)` function
+- [x] Implement `executeGooglePlacesRequest(requestFn, params)` wrapper
+- [x] Add proper error typing and consistent error handling
 
 #### 3. `MapPage.tsx` Refinement
 - [ ] Extract `useVisitedRinks(userId)` custom hook
@@ -148,8 +148,16 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
   - Created `useTimeout.ts` to manage timeouts
   - Refactored main hook to use all these smaller hooks with a state machine approach
 
+- **2025-03-05**: Refactored `placesAPI.ts` to improve modularity and error handling:
+  - Created a modular structure with separate files for types, utilities, and API functions
+  - Implemented proper error typing with PlacesErrorType enum
+  - Created utility functions for common operations like service creation and error handling
+  - Implemented a generic request wrapper for consistent error handling
+  - Extracted the radius calculation logic into a separate function
+  - Improved code organization and documentation
+
 ### In Progress
-- Refactoring `placesAPI.ts` to extract common functionality and improve error handling
+- Refactoring `useRinkSearch.ts` to decompose it into smaller, focused hooks
 
 ### Issues and Blockers
 <!-- Document any issues or blockers encountered -->
