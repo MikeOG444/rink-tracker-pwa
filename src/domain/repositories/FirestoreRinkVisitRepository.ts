@@ -154,10 +154,7 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
         
         // Fetch the rink details if available
         if (visit.rinkId) {
-          const rinkData = await this.getRinkData(visit.rinkId);
-          if (rinkData) {
-            visit.rinkData = rinkData as Rink;
-          }
+          await this.fetchRinkDataForVisits([visit]);
         }
         
         return visit;
@@ -214,6 +211,22 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
   }
   
   /**
+   * Fetch rink data for a list of visits
+   * @param visits The visits to fetch rink data for
+   * @returns A promise that resolves when all rink data has been fetched
+   */
+  private async fetchRinkDataForVisits(visits: RinkVisit[]): Promise<void> {
+    for (const visit of visits) {
+      if (visit.rinkId) {
+        const rinkData = await this.getRinkData(visit.rinkId);
+        if (rinkData) {
+          visit.rinkData = rinkData as Rink;
+        }
+      }
+    }
+  }
+  
+  /**
    * Find visits by user ID
    * @param userId The user ID
    * @returns A promise that resolves to an array of visits
@@ -236,14 +249,7 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
     }
     
     // Fetch rink data for each visit
-    for (const visit of visits) {
-      if (visit.rinkId) {
-        const rinkData = await this.getRinkData(visit.rinkId);
-        if (rinkData) {
-          visit.rinkData = rinkData as Rink;
-        }
-      }
-    }
+    await this.fetchRinkDataForVisits(visits);
     
     return visits;
   }
