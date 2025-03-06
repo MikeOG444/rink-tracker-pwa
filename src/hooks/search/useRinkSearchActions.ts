@@ -21,8 +21,7 @@ export const useRinkSearchActions = ({
   setSearchState,
   setError,
   setNoResults,
-  setShowSearchResults,
-  resetSearch
+  setShowSearchResults
 }: UseRinkSearchActionsProps) => {
   /**
    * Search for rinks by name
