@@ -36,7 +36,6 @@ const MapPage = () => {
     isLocating, 
     error: locationError, 
     getUserLocation, 
-    centerMapOnLocation, 
     handleMyLocationClick,
     defaultCenter
   } = useUserLocation({ map: null });
