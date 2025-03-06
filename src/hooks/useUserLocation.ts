@@ -28,7 +28,7 @@ export const useUserLocation = ({
   
   // Custom hooks
   const { isSupported: isGeolocationSupported } = useGeolocationSupport();
-  const { getTestLocation, testLocation } = useTestLocation({ useHardcodedLocation: useTestLocationInDev });
+  const { getTestLocation } = useTestLocation({ useHardcodedLocation: useTestLocationInDev });
   const { centerMapOnLocation } = useMapCenter({ map });
   const { setTimeout, clearTimeout } = useTimeout();
   
