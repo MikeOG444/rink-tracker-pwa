@@ -1,21 +1,11 @@
 import React from 'react';
-import { 
-  Box, 
-  Paper, 
-  TextField, 
-  InputAdornment, 
-  IconButton, 
-  CircularProgress,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
-  Typography
-} from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
-import CloseIcon from '@mui/icons-material/Close';
-import { Rink } from '../../../services/placesAPI';
+import { Box, Paper } from '@mui/material';
+import { Rink } from '../../../services/places';
+import { SearchInput, SearchResultsList, NoResultsMessage } from './search';
 
+/**
+ * Props for the SearchBar component
+ */
 interface SearchBarProps {
   searchQuery: string;
   isSearching: boolean;
@@ -29,6 +19,9 @@ interface SearchBarProps {
   handleRinkSelect: (rink: Rink) => void;
 }
 
+/**
+ * SearchBar component that combines search input, results list, and no results message
+ */
 const SearchBar: React.FC<SearchBarProps> = ({
   searchQuery,
   isSearching,
@@ -52,63 +45,26 @@ const SearchBar: React.FC<SearchBarProps> = ({
       zIndex: 1000 
     }}>
       <Paper elevation={3} sx={{ p: 1 }}>
-        <TextField
-          fullWidth
-          placeholder="Search for hockey rinks"
-          value={searchQuery}
-          onChange={handleSearchChange}
-          disabled={isSearching}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                {isSearching ? <CircularProgress size={20} /> : <SearchIcon />}
-              </InputAdornment>
-            ),
-            endAdornment: searchQuery && (
-              <InputAdornment position="end">
-                <IconButton
-                  onClick={handleClearSearch}
-                  edge="end"
-                  size="small"
-                >
-                  <CloseIcon />
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
+        {/* Search Input Component */}
+        <SearchInput
+          searchQuery={searchQuery}
+          isSearching={isSearching}
+          handleSearchChange={handleSearchChange}
+          handleClearSearch={handleClearSearch}
         />
         
-        {/* Search results - only show when searching by name */}
+        {/* Search Results List Component */}
         {showSearchResults && searchResults.length > 0 && (
-          <Paper elevation={3} sx={{ mt: 1, maxHeight: 300, overflow: 'auto' }}>
-            <List>
-              {searchResults.map((rink, index) => (
-                <Box key={rink.id}>
-                  <ListItem onClick={() => handleRinkSelect(rink)} sx={{ cursor: 'pointer' }}>
-                    <ListItemText 
-                      primary={rink.name} 
-                      secondary={rink.address}
-                      primaryTypographyProps={{ 
-                        fontWeight: selectedRink?.id === rink.id ? 'bold' : 'normal',
-                        color: visitedRinks.has(rink.id) ? 'success.main' : 'inherit'
-                      }}
-                    />
-                  </ListItem>
-                  {index < searchResults.length - 1 && <Divider />}
-                </Box>
-              ))}
-            </List>
-          </Paper>
+          <SearchResultsList
+            searchResults={searchResults}
+            selectedRink={selectedRink}
+            visitedRinks={visitedRinks}
+            handleRinkSelect={handleRinkSelect}
+          />
         )}
         
-        {/* No results message - only show when searching by name */}
-        {showSearchResults && noResults && (
-          <Paper elevation={3} sx={{ mt: 1, p: 2 }}>
-            <Typography variant="body1" align="center">
-              No rinks found. Try a different search term or location.
-            </Typography>
-          </Paper>
-        )}
+        {/* No Results Message Component */}
+        {showSearchResults && noResults && <NoResultsMessage />}
       </Paper>
     </Box>
   );
