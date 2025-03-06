@@ -1,5 +1,3 @@
-import { Rink } from '../../services/places';
-
 // Search state types
 export enum SearchState {
   IDLE = 'idle',
