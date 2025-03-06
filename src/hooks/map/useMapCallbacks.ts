@@ -5,7 +5,6 @@ import { defaultZoom } from '../../components/map/constants/mapConfig';
 interface UseMapCallbacksProps {
   userLocation: google.maps.LatLngLiteral | null;
   getUserLocation: () => void;
-  centerMapOnLocation: (location: google.maps.LatLngLiteral) => void;
 }
 
 /**
@@ -13,8 +12,7 @@ interface UseMapCallbacksProps {
  */
 export const useMapCallbacks = ({
   userLocation,
-  getUserLocation,
-  centerMapOnLocation
+  getUserLocation
 }: UseMapCallbacksProps) => {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   

@@ -43,8 +43,7 @@ const MapPage = () => {
 
   const { map, onLoad, onUnmount } = useMapCallbacks({
     userLocation,
-    getUserLocation,
-    centerMapOnLocation
+    getUserLocation
   });
 
   const {
