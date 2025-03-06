@@ -39,9 +39,9 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
 - [x] Extract `useDebounce` hook
 
 #### 5. `SearchBar.tsx` Component Extraction
-- [ ] Extract `SearchInput` component
-- [ ] Extract `SearchResultsList` component
-- [ ] Extract `NoResultsMessage` component
+- [x] Extract `SearchInput` component
+- [x] Extract `SearchResultsList` component
+- [x] Extract `NoResultsMessage` component
 
 ### Phase 2: Domain Model Implementation (Medium Priority)
 
@@ -165,7 +165,7 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
   - Refactored main hook to use all these smaller hooks with proper separation of concerns
 
 ### In Progress
-- Refactoring `SearchBar.tsx` to extract smaller, focused components
+- Moving to Phase 2: Domain Model Implementation
 
 ### Completed Tasks (continued)
 - **2025-03-05**: Refactored `MapPage.tsx` to extract reusable hooks and components:
@@ -175,6 +175,13 @@ This document outlines the plan for addressing technical debt in the Rink Tracke
   - Created `MapContainer.tsx` component to handle map rendering
   - Updated `useUserLocation.ts` to handle circular dependencies
   - Simplified the main component by using the extracted hooks and components
+
+- **2025-03-05**: Refactored `SearchBar.tsx` to extract smaller, focused components:
+  - Created `SearchInput` component for the search input field and clear button
+  - Created `SearchResultsList` component for displaying search results
+  - Created `NoResultsMessage` component for showing no results message
+  - Organized components in a dedicated directory structure
+  - Improved component composition and separation of concerns
 
 ### Issues and Blockers
 <!-- Document any issues or blockers encountered -->
