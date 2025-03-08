@@ -135,8 +135,42 @@ Rink Tracker is more than just an activity log—it's a hockey community hub tha
 - [x] **Initial interactive map with rink search functionality**  
 - [x] **Activity logging system prototype**  
 - [x] **Basic offline support with IndexedDB**  
+- [x] **Technical Debt Refactoring - Phase 1**: Refactored complex hooks and components
+- [x] **Domain Model Implementation**: Created core domain models with validation and factory methods
+- [x] **Repository Pattern Implementation**: Implemented repository pattern for domain models with Firestore integration
+- [x] **Code Quality Improvements**: Eliminated code duplication, enhanced error handling, and improved type safety
+- [x] **Bug Fixes**: Fixed issues with domain models' toObject methods and IndexedDB storage for offline activities
+- [x] **Rink Selection Feature**: Implemented rink selection modal for activity logging with search functionality
+- [x] **Bug Fixes**: Fixed activity type display issue (Open Skate vs. Recreational Skating)
+- [x] **Bug Fixes**: Fixed activity type filtering issue in Dashboard by ensuring consistency between UI labels and stored values
+- [x] **UX Improvements**: Enhanced RinkSelectionModal with search button and better user feedback
+- [x] **Bug Fixes**: Fixed accessibility issues and Google Maps API error handling in RinkSelectionModal
+- [x] **UX Improvements**: Added retry button for Google Maps API loading failures with improved error messages
+- [x] **Architecture Improvements**: Moved Google Maps API loading to app level with GoogleMapsContext
+- [x] **Infrastructure Improvements**: Created required Firestore composite indexes for activities and rink_visits collections
+- [x] **Error Handling**: Implemented centralized error handling with custom error classes and structured logging
+- [x] **Logging**: Created a comprehensive logging service with different log levels and context support
 
 ---
+
+## **🔧 Future Tech Debt Cleanup**
+- **Repository Test and Implementation Mismatches**: Fix discrepancies between FirestoreUserRinkRepository tests and implementation:
+  - Method name mismatch: Repository uses `toObject()` but tests mock `toFirestore()`
+  - Result handling in `findByUserId`: Tests expect 2 results but get 0
+  - Error handling in `delete` method: Returns false instead of throwing an error
+- **Complete Repository Testing**: Finish testing the repository implementations:
+  - Write unit tests for repositories
+  - Verify functionality works as expected
+  - Check for regressions or performance issues
+- **State Management Improvements**:
+  - Evaluate React Context vs Redux for state management
+  - Create a dedicated state slice for rink-related data
+  - Implement proper state normalization
+  - Add selectors for derived state
+- **Code Quality Improvements**:
+  - Identify and refactor any remaining complex methods
+  - Improve error handling in UI components using the new error handling system
+  - Enhance logging with the new logging service
 
 ## **🔮 Future Considerations**  
 - **ice rink booking systems**  Integration with systems available and in use

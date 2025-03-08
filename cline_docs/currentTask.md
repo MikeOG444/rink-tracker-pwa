@@ -1,61 +1,116 @@
 # Current Task
 
 ## Current Objectives
-- Enhance the Dashboard component functionality
-- Reference to projectRoadmap.md: "Create a dashboard for managing logged activities, rink visits, and progress tracking"
+- Continue Phase 2 of the Technical Debt Refactoring initiative
+- Reference to projectRoadmap.md: "Technical Debt Refactoring"
+- Current focus: Implement repository pattern and improve code quality
 
 ## Context
-The Dashboard component currently provides users with the ability to log activities, view their activity history, and manage their profile. The component already has several key features implemented:
+We have successfully completed Phase 1 of our technical debt refactoring initiative, which focused on fixing complex methods and components. We have:
 
-- User profile display with avatar and display name editing
-- Activity logging with validation
-- Activity history display with filtering and sorting
-- Offline mode support with synchronization
-- Edit and delete functionality for activities
+1. Refactored `useUserLocation.ts` to use a state machine approach and extracted smaller, focused hooks
+2. Refactored `placesAPI.ts` to improve modularity and error handling
+3. Refactored `useRinkSearch.ts` to decompose it into smaller, focused hooks
+4. Refactored `MapPage.tsx` to extract reusable hooks and components
+5. Refactored `SearchBar.tsx` to extract smaller, focused components
 
-However, based on the updated project roadmap, there are several enhancements needed to fully implement the dashboard according to the project goals.
+In Phase 2, we have made significant progress:
+
+1. Created core domain models:
+   - ✅ Created `ActivityType.ts` enum to define the types of activities users can log
+   - ✅ Created `Activity.ts` class with validation and factory methods
+   - ✅ Created `UserRink.ts` class to represent a user's relationship with a rink
+   - ✅ Created `RinkVisit.ts` class to represent a user's visit to a rink
+
+2. Implemented the domain models:
+   - ✅ Defined clear interfaces and types
+   - ✅ Implemented validation logic
+   - ✅ Added factory methods for creating instances
+   - ✅ Ensured proper encapsulation of data
+
+3. Implemented the repository pattern:
+   - ✅ Created generic `Repository<T, ID>` interface
+   - ✅ Created specific repository interfaces for each domain model
+   - ✅ Implemented Firestore repositories for each domain model
+   - ✅ Implemented data mappers for Firestore <-> Domain model conversion
+   - ✅ Added offline support for activities
+
+4. Improved code quality:
+   - ✅ Eliminated code duplication by creating reusable helper methods
+   - ✅ Enhanced error handling with consistent patterns
+   - ✅ Improved type safety with proper TypeScript usage
+   - ✅ Removed unused code and imports
+   - ✅ Added comprehensive documentation
 
 ## Next Steps
-1. Implement gamification features in the dashboard:
-   - Add badges and achievements for milestones
-   - Display user's ranking on leaderboards
-   - Show statistics for unique rinks visited
+1. ✅ Integrate repositories with UI components:
+   - ✅ Update Dashboard to use the ActivityRepository
+   - ✅ Update useVisitedRinks hook to use the UserRinkRepository
+   - ✅ Update RinkDetailsPanel to use the RinkVisitRepository
+   - ✅ Ensure proper dependency injection
 
-2. Enhance activity verification:
-   - Improve the visual distinction between verified and non-verified activities
-   - Add ability to verify activities when user is at a rink location
+2. Implement additional repository features:
+   - ✅ Add caching for frequently accessed data
+   - ✅ Implement batch operations for better performance
+   - ✅ Add pagination support for large datasets
 
-3. Improve rink integration:
-   - Display favorite rinks section
-   - Show recently visited rinks with quick access
-   - Add ability to filter activities by rink
+3. ✅ Implement error handling and logging infrastructure:
+   - ✅ Created centralized `ErrorHandler` service for consistent error handling
+   - ✅ Implemented custom error classes for different error categories
+   - ✅ Created comprehensive `LoggingService` with different log levels
+   - ✅ Added React error boundaries for UI error handling
+   - ✅ Updated `ErrorDisplay` component to use the new error handling system
 
-4. Enhance offline functionality:
-   - Improve sync status indicators
-   - Add conflict resolution for offline edits
-   - Ensure seamless transition between online and offline modes
+4. ✅ Enhance user experience:
+   - ✅ Implement rink selection feature in Dashboard
+   - ✅ Create RinkSelectionModal component for searching and selecting rinks
+   - ✅ Integrate with UserRinkRepository to track rink visits
+   - ✅ Add validation for required fields in activity logging
+   - ✅ Fix activity type display issue (Open Skate vs. Recreational Skating)
+   - ✅ Fix activity type filtering issue in Dashboard by ensuring consistency between UI labels and stored values
+   - ✅ Improve RinkSelectionModal with search button and better user feedback
+   - ✅ Fix accessibility issues and Google Maps API error handling in RinkSelectionModal
+   - ✅ Add retry button for Google Maps API loading failures
+   - ✅ Move Google Maps API loading to app level with GoogleMapsContext
+   - ✅ Improve UX with better error messages and loading indicators
 
-5. Implement data visualization:
-   - Add charts or graphs for activity trends
-   - Visualize rink visit frequency
-   - Display activity breakdown by type
+5. Update documentation:
+   - ✅ Update codebaseSummary.md with repository pattern details
+   - ✅ Update refactoring-plan.md to track progress
+   - ✅ Update currentTask.md as tasks are completed
+   - Create additional technical documentation for new engineers
 
-6. Optimize performance:
-   - Implement pagination for large activity lists
-   - Optimize data fetching and state management
-   - Improve loading states and transitions
+## Future Tech Debt (Deferred to Post-Merge)
+
+1. Complete Repository Testing:
+   - Verify that all repository functionality works as expected
+   - Check for any regressions or performance issues
+   - Add unit tests for repositories (particularly for FirestoreUserRinkRepository)
+   - Fix the known discrepancies between FirestoreUserRinkRepository tests and implementation:
+     - Method name mismatch: Repository uses `toObject()` but tests mock `toFirestore()`
+     - Result handling in `findByUserId`: Tests expect 2 results but get 0
+     - Error handling in `delete` method: Returns false instead of throwing an error
+
+2. State Management Improvements:
+   - Evaluate React Context vs Redux for state management
+   - Create a dedicated state slice for rink-related data
+   - Implement proper state normalization
+   - Add selectors for derived state
+
+3. Continue Code Quality Improvements:
+   - Identify and refactor any remaining complex methods
+   - Improve error handling in UI components using the new error handling system
+   - Enhance logging with the new logging service
 
 ## Related Components
-- NavBar.tsx (for navigation to the dashboard)
-- MapPage.tsx (for integration with the map functionality)
-- RinkDetailsPanel.tsx (for displaying rink information)
-- Firebase services (for authentication and data storage)
-- IndexedDB service (for offline data persistence)
+- src/services/firestore.ts
+- src/components/dashboard/Dashboard.tsx
+- src/context/AuthContext.tsx
 
 ## Technical Considerations
-- Ensure proper data fetching and state management
-- Implement error handling for network issues
-- Optimize IndexedDB usage for better offline performance
-- Consider implementing a caching strategy for frequently accessed data
-- Ensure responsive design works well on all device sizes
-- Add comprehensive testing for offline scenarios
+- Follow domain-driven design principles
+- Ensure proper separation of concerns
+- Implement validation and business rules in the domain models
+- Use TypeScript for type safety
+- Maintain backward compatibility with existing components
+- Ensure code is testable and maintainable

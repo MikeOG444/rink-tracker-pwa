@@ -1,174 +1,134 @@
-import { useState, useCallback, useRef } from 'react';
-import { Rink, searchRinksByName, findRinksInMapBounds, getRinkDetails } from '../services/placesAPI';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { 
+  useRinkSearchState, 
+  useRinkSearchActions, 
+  useRinkSelection,
+  useDebounce,
+  DEFAULT_SEARCH_DEBOUNCE_DELAY,
+  MIN_QUERY_LENGTH,
+  SearchState
+} from './search';
 
 interface UseRinkSearchProps {
   map: google.maps.Map | null;
 }
 
+/**
+ * Main hook for rink search functionality
+ * Combines smaller, focused hooks for better maintainability
+ */
 export const useRinkSearch = ({ map }: UseRinkSearchProps) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Rink[]>([]);
-  const [selectedRink, setSelectedRink] = useState<Rink | null>(null);
-  const [detailedRink, setDetailedRink] = useState<Rink | null>(null);
+  // Get search state from useRinkSearchState hook
+  const searchState = useRinkSearchState();
+  
+  // Local state to track if a search is in progress
   const [isSearching, setIsSearching] = useState(false);
-  const [noResults, setNoResults] = useState(false);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [showRinkDetails, setShowRinkDetails] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Function to search for rinks using Google Places API
-  const searchRinks = useCallback(async (query: string) => {
-    if (!map || !query.trim()) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
-    
-    console.log('Searching for rinks with query:', query);
-    setIsSearching(true);
-    setNoResults(false);
-    setShowSearchResults(true);
-    
-    try {
-      const results = await searchRinksByName(query, map);
-      console.log('Search results:', results.length);
-      
-      if (results.length === 0) {
-        setNoResults(true);
-      }
-      
-      setSearchResults(results);
-    } catch (error) {
-      console.error('Error searching for rinks:', error);
-      setError('Error searching for rinks. Please try again.');
-    } finally {
-      setIsSearching(false);
-    }
-  }, [map]);
+  // Ref to track the latest query to prevent stale closures
+  const latestQueryRef = useRef('');
   
-  // Function to find rinks in the current map view
-  const findRinksInView = useCallback(async () => {
-    if (!map) {
-      setError('Cannot find rinks: Map is not available.');
-      return;
-    }
-    
-    console.log('Finding rinks in current map view');
-    setIsSearching(true);
-    setShowSearchResults(false); // Don't show dropdown for map view search
-    setSearchQuery(''); // Clear search query
-    
-    try {
-      const results = await findRinksInMapBounds(map);
-      console.log('Map view results:', results.length);
-      
-      // Don't show results in dropdown, just add markers to the map
-      setSearchResults(results);
-      
-      if (results.length === 0) {
-        setError('No rinks found in the current map view.');
-      }
-    } catch (error) {
-      console.error('Error finding rinks in map view:', error);
-      setError('Error finding rinks. Please try again.');
-    } finally {
-      setIsSearching(false);
-    }
-  }, [map]);
+  // Get rink selection handlers from useRinkSelection hook
+  const selectionHandlers = useRinkSelection({
+    map,
+    setSelectedRink: searchState.setSelectedRink,
+    setDetailedRink: searchState.setDetailedRink,
+    setShowRinkDetails: searchState.setShowRinkDetails
+  });
   
-  // Function to handle rink selection
-  const handleRinkSelect = useCallback(async (rink: Rink) => {
-    console.log('Selected rink:', rink.name);
-    setSelectedRink(rink);
-    
-    if (map) {
-      console.log('Centering map on selected rink:', rink.position.lat, rink.position.lng);
-      map.panTo(rink.position);
-      map.setZoom(15);
-      
-      // Get detailed information about the rink
-      try {
-        const detailedRink = await getRinkDetails(rink.id, map);
-        setDetailedRink(detailedRink);
-        setShowRinkDetails(true);
-      } catch (error) {
-        console.error('Error getting rink details:', error);
-        // Still show the details panel with the basic info we have
-        setDetailedRink(rink);
-        setShowRinkDetails(true);
-      }
-    }
-  }, [map]);
+  // Get search actions from useRinkSearchActions hook
+  const searchActions = useRinkSearchActions({
+    map,
+    setSearchResults: searchState.setSearchResults,
+    setSearchState: searchState.setSearchState,
+    setError: searchState.setError,
+    setNoResults: searchState.setNoResults,
+    setShowSearchResults: searchState.setShowSearchResults,
+    resetSearch: searchState.resetSearch
+  });
   
-  // Function to handle marker click
-  const handleMarkerClick = useCallback((rink: Rink) => {
-    handleRinkSelect(rink);
-  }, [handleRinkSelect]);
+  // Use debounced search query with increased delay
+  const debouncedQuery = useDebounce(searchState.searchQuery, DEFAULT_SEARCH_DEBOUNCE_DELAY);
   
-  // Handle search input change with debounce
+  // Handle search input change - this updates the query state
   const handleSearchChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const query = event.target.value;
-    setSearchQuery(query);
+    searchState.setSearchQuery(query);
+    latestQueryRef.current = query;
     
-    // Clear any existing timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
+    if (query.length < MIN_QUERY_LENGTH) {
+      searchState.setSearchResults([]);
+      searchState.setNoResults(false);
+      searchState.setShowSearchResults(false);
+    }
+  }, [searchState]);
+  
+  // Perform search when debounced query changes
+  useEffect(() => {
+    // Skip if query is too short or search is already in progress
+    if (debouncedQuery.length < MIN_QUERY_LENGTH || isSearching) {
+      return;
     }
     
-    if (query.length >= 2) {
-      // Debounce search to avoid too many API calls
-      searchTimeoutRef.current = setTimeout(() => {
-        searchRinks(query);
-      }, 500);
-    } else {
-      setSearchResults([]);
-      setNoResults(false);
-      setShowSearchResults(false);
+    // Skip if the debounced query doesn't match the latest query
+    // This prevents stale searches when typing quickly
+    if (debouncedQuery !== latestQueryRef.current) {
+      return;
     }
-  }, [searchRinks]);
+    
+    // Use a local variable to track if this specific search is still relevant
+    let isCurrent = true;
+    
+    const performSearch = async () => {
+      try {
+        setIsSearching(true);
+        searchState.setSearchState(SearchState.SEARCHING);
+        await searchActions.searchRinks(debouncedQuery);
+      } catch (error) {
+        console.error('Search error:', error);
+      } finally {
+        // Only update state if this search is still relevant
+        if (isCurrent) {
+          setIsSearching(false);
+        }
+      }
+    };
+    
+    performSearch();
+    
+    // Cleanup function to handle component unmounting during search
+    return () => {
+      isCurrent = false;
+    };
+  }, [debouncedQuery, searchActions, searchState, isSearching]);
   
   // Handle clear search
   const handleClearSearch = useCallback(() => {
     console.log('Clear search clicked');
-    setSearchQuery('');
-    setSearchResults([]);
-    setNoResults(false);
-    setSelectedRink(null);
-    setShowRinkDetails(false);
-    setShowSearchResults(false);
-  }, []);
+    searchState.resetSearch();
+    searchState.resetSelection();
+    setIsSearching(false);
+    latestQueryRef.current = '';
+  }, [searchState]);
   
-  // Close the rink details panel
-  const handleCloseRinkDetails = useCallback(() => {
-    setShowRinkDetails(false);
-    setDetailedRink(null);
-  }, []);
-  
-  // Handle error close
-  const handleErrorClose = useCallback(() => {
-    console.log('Error dismissed');
-    setError(null);
-  }, []);
-
   return {
-    searchQuery,
-    searchResults,
-    selectedRink,
-    detailedRink,
-    isSearching,
-    noResults,
-    showSearchResults,
-    showRinkDetails,
-    error,
-    searchRinks,
-    findRinksInView,
-    handleRinkSelect,
-    handleMarkerClick,
+    // State
+    searchQuery: searchState.searchQuery,
+    searchResults: searchState.searchResults,
+    selectedRink: searchState.selectedRink,
+    detailedRink: searchState.detailedRink,
+    isSearching: searchState.isSearching,
+    noResults: searchState.noResults,
+    showSearchResults: searchState.showSearchResults,
+    showRinkDetails: searchState.showRinkDetails,
+    error: searchState.error?.message || null,
+    
+    // Actions
+    findRinksInView: searchActions.findRinksInView,
+    handleRinkSelect: selectionHandlers.handleRinkSelect,
+    handleMarkerClick: selectionHandlers.handleMarkerClick,
     handleSearchChange,
     handleClearSearch,
-    handleCloseRinkDetails,
-    handleErrorClose
+    handleCloseRinkDetails: selectionHandlers.handleCloseRinkDetails,
+    handleErrorClose: searchActions.handleErrorClose
   };
 };

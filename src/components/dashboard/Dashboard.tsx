@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useLocation } from "react-router-dom";
 import { updateProfile } from "firebase/auth";
-import { addActivity, getUserActivities, editActivity, deleteActivity } from "../../services/firestore";
 import {
   Container, Typography, TextField, Select, MenuItem,
   Card, CardContent, Avatar, Box, List, IconButton, Button,
@@ -10,7 +9,12 @@ import {
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { getOfflineActivities } from "../../services/indexedDB";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import { activityRepository, userRinkRepository } from "../../domain/repositories";
+import { Activity } from "../../domain/models/Activity";
+import ActivityType, { getActivityTypeLabel } from "../../domain/models/ActivityType";
+import RinkSelectionModal from "./RinkSelectionModal";
+import { Rink } from "../../services/places";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -23,7 +27,12 @@ const Dashboard = () => {
   const [validationErrors, setValidationErrors] = useState<{
     activityType?: string;
     activityDetails?: string;
+    rink?: string;
   }>({});
+  
+  // State for rink selection
+  const [selectedRink, setSelectedRink] = useState<Rink | null>(null);
+  const [isRinkModalOpen, setIsRinkModalOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [rinkPreSelected, setRinkPreSelected] = useState(false);
@@ -50,29 +59,25 @@ const Dashboard = () => {
 
     console.log("📡 Fetching latest activities for user:", user.uid);
 
-    // Fetch Firestore activities
-    const onlineActivities = await getUserActivities(user.uid);
+    try {
+      // Fetch activities using the repository
+      const userActivities = await activityRepository.findByUserId(user.uid);
+      
+      // Convert domain model activities to UI-friendly format
+      const activitiesForUI = userActivities.map(activity => ({
+        id: activity.id,
+        type: getActivityTypeLabel(activity.type),
+        details: activity.notes || "",
+        timestamp: activity.date,
+        offline: false, // This will be handled by the repository
+        rink: null // This will be handled by the repository
+      }));
 
-    // Fetch IndexedDB offline activities
-    const offlineActivities: any[] = await getOfflineActivities();
-
-    // ✅ Ensure offline activities have a pending sync flag
-    const offlineActivitiesWithFlag = offlineActivities.map(activity => ({
-      ...activity,
-      offline: true, // Mark as waiting for sync
-      id: `offline-${activity.timestamp}`, // Unique ID for offline items
-    }));
-
-    // ✅ Merge online and offline activities
-    const allActivities = [...offlineActivitiesWithFlag, ...onlineActivities];
-
-    // ✅ Ensure activities are sorted and unique
-    const uniqueActivities = Array.from(
-      new Map(allActivities.map((activity) => [activity.id, activity])).values()
-    ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    setActivities(uniqueActivities);
-    console.log("✅ Activities updated in state:", uniqueActivities);
+      setActivities(activitiesForUI);
+      console.log("✅ Activities updated in state:", activitiesForUI.length);
+    } catch (error) {
+      console.error("❌ Error fetching activities:", error);
+    }
   };
 
 
@@ -92,7 +97,7 @@ const Dashboard = () => {
   // Check for rink information in location state
   useEffect(() => {
     // Check if we have rink information from the map
-    const state = location.state as { logActivity?: boolean; rink?: any } | null;
+    const state = location.state as { logActivity?: boolean; rink?: Rink } | null;
     
     if (state?.logActivity && state.rink) {
       console.log("📍 Received rink information:", state.rink);
@@ -100,13 +105,38 @@ const Dashboard = () => {
       // Pre-select "Open Skate" as default activity type
       setActivityType("Open Skate");
       
-      // Pre-populate activity details with rink name and address
-      setActivityDetails(`Skated at ${state.rink.name} (${state.rink.address})`);
-      
-      // Set flag to show notification
-      setRinkPreSelected(true);
+      // Set the selected rink (ensure it's a valid Rink object)
+      if (state.rink.id && state.rink.name && state.rink.address) {
+        setSelectedRink(state.rink);
+        
+        // Pre-populate activity details
+        setActivityDetails(`Skated at ${state.rink.name}`);
+        
+        // Set flag to show notification
+        setRinkPreSelected(true);
+      }
     }
   }, [location.state]);
+  
+  // Handle opening the rink selection modal
+  const handleOpenRinkModal = () => {
+    setIsRinkModalOpen(true);
+  };
+  
+  // Handle rink selection
+  const handleSelectRink = (rink: Rink) => {
+    setSelectedRink(rink);
+    
+    // Clear any validation errors
+    if (validationErrors.rink) {
+      setValidationErrors(prev => ({ ...prev, rink: undefined }));
+    }
+    
+    // Update activity details with rink name if it's empty or contains default text
+    if (!activityDetails || activityDetails.startsWith("Skated at ")) {
+      setActivityDetails(`Skated at ${rink.name}`);
+    }
+  };
 
   const handleLogActivity = async () => {
     console.log("📌 Log Activity button clicked");
@@ -118,6 +148,7 @@ const Dashboard = () => {
     const errors: {
       activityType?: string;
       activityDetails?: string;
+      rink?: string;
     } = {};
     
     if (!activityType) {
@@ -126,6 +157,10 @@ const Dashboard = () => {
     
     if (!activityDetails) {
       errors.activityDetails = "Please enter activity details";
+    }
+    
+    if (!selectedRink) {
+      errors.rink = "Please select a rink for this activity";
     }
     
     // If there are validation errors, show them and stop
@@ -141,12 +176,57 @@ const Dashboard = () => {
     }
 
     try {
-      console.log("✅ Adding new activity:", { userId: user.uid, activityType, activityDetails });
-      await addActivity(user.uid, activityType, activityDetails);
+      console.log("✅ Adding new activity:", { 
+        userId: user.uid, 
+        activityType, 
+        activityDetails,
+        rink: selectedRink?.name
+      });
       
+      // Map UI activity type to domain model activity type
+      let activityTypeEnum: ActivityType;
+      switch (activityType) {
+        case "Game":
+          activityTypeEnum = ActivityType.HOCKEY_GAME;
+          break;
+        case "Practice":
+          activityTypeEnum = ActivityType.HOCKEY_PRACTICE;
+          break;
+        case "Skills Session":
+          activityTypeEnum = ActivityType.HOCKEY_CLINIC;
+          break;
+        case "Open Skate":
+          activityTypeEnum = ActivityType.RECREATIONAL_SKATING;
+          break;
+        default:
+          activityTypeEnum = ActivityType.OTHER;
+      }
+      
+      // Create a new activity with the selected rink ID
+      // We've already validated that selectedRink is not null in the validation step above
+      if (!selectedRink) {
+        throw new Error("Rink selection is required");
+      }
+      
+      const activity = Activity.create(user.uid, selectedRink.id, activityTypeEnum);
+      activity.notes = activityDetails;
+      
+      // Save the activity
+      await activityRepository.save(activity);
+      
+      // Also increment the visit count for this rink in the user's profile
+      // We can safely use ! here because we've already validated that selectedRink is not null
+      if (selectedRink) {
+        await userRinkRepository.incrementVisitCount(user.uid, selectedRink.id, selectedRink);
+      }
+      
+      // Reset form
       setActivityType("");
       setActivityDetails("");
-      setRinkPreSelected(false); // Reset the rink pre-selected flag
+      setSelectedRink(null);
+      setRinkPreSelected(false);
+      
+      // Refresh activities list
       fetchActivities();
       console.log("🎉 Activity successfully logged!");
     } catch (error) {
@@ -168,7 +248,41 @@ const Dashboard = () => {
 
     try {
       console.log("✏️ Saving edited activity:", activityId);
-      await editActivity(activityId, newType, newDetails);
+      
+      // Get the existing activity
+      const activity = await activityRepository.findById(activityId);
+      
+      if (!activity) {
+        console.error("❌ Activity not found:", activityId);
+        return;
+      }
+      
+      // Map UI activity type to domain model activity type
+      let activityTypeEnum: ActivityType;
+      switch (newType) {
+        case "Game":
+          activityTypeEnum = ActivityType.HOCKEY_GAME;
+          break;
+        case "Practice":
+          activityTypeEnum = ActivityType.HOCKEY_PRACTICE;
+          break;
+        case "Skills Session":
+          activityTypeEnum = ActivityType.HOCKEY_CLINIC;
+          break;
+        case "Open Skate":
+          activityTypeEnum = ActivityType.RECREATIONAL_SKATING;
+          break;
+        default:
+          activityTypeEnum = ActivityType.OTHER;
+      }
+      
+      // Update the activity
+      activity.type = activityTypeEnum;
+      activity.notes = newDetails;
+      
+      // Save the updated activity
+      await activityRepository.save(activity);
+      
       setEditingActivity(null);
       fetchActivities();
     } catch (error) {
@@ -188,10 +302,14 @@ const Dashboard = () => {
 
   const handleConfirmDelete = async () => {
     if (activityToDelete) {
-      await deleteActivity(activityToDelete);
-      fetchActivities();
-      setDeleteConfirmOpen(false);
-      setActivityToDelete(null);
+      try {
+        await activityRepository.delete(activityToDelete);
+        fetchActivities();
+        setDeleteConfirmOpen(false);
+        setActivityToDelete(null);
+      } catch (error) {
+        console.error("🔥 Error deleting activity:", error);
+      }
     }
   };
 
@@ -372,6 +490,59 @@ const Dashboard = () => {
               {validationErrors.activityType}
             </Typography>
           )}
+          
+          {/* Rink Selection Button */}
+          <Box 
+            sx={{ 
+              mt: 2, 
+              p: 2, 
+              border: '1px dashed',
+              borderColor: validationErrors.rink ? 'error.main' : 'divider',
+              borderRadius: 1,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+          >
+            {selectedRink ? (
+              <>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    {selectedRink.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedRink.address}
+                  </Typography>
+                </Box>
+                <Button 
+                  variant="outlined" 
+                  startIcon={<EditIcon />}
+                  onClick={handleOpenRinkModal}
+                >
+                  Change
+                </Button>
+              </>
+            ) : (
+              <>
+                <Typography color={validationErrors.rink ? "error" : "inherit"}>
+                  Select a rink for this activity *
+                </Typography>
+                <Button 
+                  variant="contained" 
+                  startIcon={<LocationOnIcon />}
+                  onClick={handleOpenRinkModal}
+                  color={validationErrors.rink ? "error" : "primary"}
+                >
+                  Select Rink
+                </Button>
+              </>
+            )}
+          </Box>
+          {validationErrors.rink && (
+            <Typography color="error" variant="caption" sx={{ display: 'block', mt: 0.5, ml: 1 }}>
+              {validationErrors.rink}
+            </Typography>
+          )}
           <TextField
             fullWidth
             label="Activity Details"
@@ -542,6 +713,13 @@ const Dashboard = () => {
           </List>
         </CardContent>
       </Card>
+      
+      {/* Rink Selection Modal */}
+      <RinkSelectionModal
+        open={isRinkModalOpen}
+        onClose={() => setIsRinkModalOpen(false)}
+        onSelectRink={handleSelectRink}
+      />
     </Container>
   );
 };
