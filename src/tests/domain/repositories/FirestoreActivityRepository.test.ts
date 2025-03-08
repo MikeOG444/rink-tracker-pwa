@@ -4,9 +4,7 @@ import {
   getDocs, 
   query, 
   orderBy, 
-  limit, 
-  doc, 
-  getDoc 
+  limit
 } from 'firebase/firestore';
 import { FirestoreActivityRepository } from '../../../domain/repositories/FirestoreActivityRepository';
 import { PaginationOptions } from '../../../domain/repositories/Repository';

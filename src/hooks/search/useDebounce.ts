@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
 
-// Import from searchUtils to avoid duplicate exports
-import { DEFAULT_SEARCH_DEBOUNCE_DELAY } from './searchUtils';
-
 /**
  * A hook that debounces a value
  * @param value The value to debounce
