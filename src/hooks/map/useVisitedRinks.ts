@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getUserVisitedRinks } from '../../services/firestore';
+import { userRinkRepository } from '../../domain/repositories';
 
 /**
  * Hook to fetch and manage visited rinks for a user
@@ -19,8 +19,11 @@ export const useVisitedRinks = (userId: string | null) => {
       setError(null);
       
       try {
-        const rinks = await getUserVisitedRinks(userId);
-        const rinkIds = new Set(rinks.map(rink => rink.id));
+        // Use the userRinkRepository to get the user's rinks
+        const userRinks = await userRinkRepository.findByUserId(userId);
+        
+        // Extract the rink IDs from the user rinks
+        const rinkIds = new Set(userRinks.map(userRink => userRink.rinkId));
         setVisitedRinks(rinkIds);
       } catch (error) {
         console.error('Error loading visited rinks:', error);

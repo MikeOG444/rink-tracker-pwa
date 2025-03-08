@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { RinkVisit } from "../models/RinkVisit";
 import { RinkVisitRepository } from "./RinkVisitRepository";
+import { PaginationOptions, Page } from "./Repository";
 import ActivityType from "../models/ActivityType";
 import type { Rink } from "../../services/places";
 
@@ -194,6 +195,39 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
   }
   
   /**
+   * Find multiple visits by their IDs
+   * @param ids The visit IDs
+   * @returns A promise that resolves to an array of visits
+   */
+  async findByIds(ids: string[]): Promise<RinkVisit[]> {
+    if (!ids.length) return [];
+    
+    return this.executeQuery(
+      async () => {
+        // Firestore doesn't support a direct "in" query for document IDs
+        // So we need to fetch each document individually
+        const fetchPromises = ids.map(id => 
+          this.getVisitById(id, `Error finding visit with ID ${id}`)
+        );
+        
+        const visits = await Promise.all(fetchPromises);
+        
+        // Filter out null results
+        const validVisits = visits.filter((visit): visit is RinkVisit => 
+          visit !== null
+        );
+        
+        // Fetch rink data for each visit
+        await this.fetchRinkDataForVisits(validVisits);
+        
+        return validVisits;
+      },
+      "Error finding visits by IDs",
+      []
+    );
+  }
+  
+  /**
    * Find all visits
    * @returns A promise that resolves to an array of visits
    */
@@ -201,6 +235,66 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
     return this.findVisitsByConstraints(
       [orderBy("date", "desc")],
       "Error finding all visits"
+    );
+  }
+  
+  /**
+   * Find all visits with pagination
+   * @param options The pagination options
+   * @returns A promise that resolves to a page of visits
+   */
+  async findAllPaginated(options: PaginationOptions): Promise<Page<RinkVisit>> {
+    return this.executeQuery(
+      async () => {
+        const { page, pageSize } = options;
+        
+        // First, get the total count of visits
+        const countQuery = query(collection(db, RINK_VISITS_COLLECTION));
+        const countSnapshot = await getDocs(countQuery);
+        const totalItems = countSnapshot.size;
+        
+        // Calculate total pages
+        const totalPages = Math.ceil(totalItems / pageSize);
+        
+        // Then, get the paginated visits
+        const q = query(
+          collection(db, RINK_VISITS_COLLECTION),
+          orderBy("date", "desc"),
+          limit(pageSize)
+        );
+        
+        const snapshot = await getDocs(q);
+        
+        const visits = snapshot.docs.map(doc => 
+          this.mapDocumentToVisit(doc.id, doc.data())
+        );
+        
+        // Fetch rink data for each visit
+        await this.fetchRinkDataForVisits(visits);
+        
+        // Create the pagination result
+        const result: Page<RinkVisit> = {
+          items: visits,
+          totalItems,
+          currentPage: page,
+          pageSize,
+          totalPages,
+          hasPrevious: page > 1,
+          hasNext: page < totalPages
+        };
+        
+        return result;
+      },
+      "Error finding paginated visits",
+      {
+        items: [],
+        totalItems: 0,
+        currentPage: options.page,
+        pageSize: options.pageSize,
+        totalPages: 0,
+        hasPrevious: false,
+        hasNext: false
+      }
     );
   }
   
@@ -412,6 +506,53 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
   }
   
   /**
+   * Save multiple visits in a batch operation
+   * @param entities The visits to save
+   * @returns A promise that resolves to the saved visits
+   */
+  async saveAll(entities: RinkVisit[]): Promise<RinkVisit[]> {
+    if (!entities.length) return [];
+    
+    return this.executeQuery(
+      async () => {
+        const batch = await import("firebase/firestore").then(module => module.writeBatch(db));
+        const savedVisits: RinkVisit[] = [];
+        
+        // Process each visit
+        for (const visit of entities) {
+          // Save the rink data if provided
+          if (visit.rinkData) {
+            await this.saveRinkData(visit.rinkId, visit.rinkData);
+          }
+          
+          const visitData = visit.toObject();
+          
+          if (visit.id) {
+            // Update existing visit
+            const visitRef = doc(db, RINK_VISITS_COLLECTION, visit.id);
+            batch.update(visitRef, visitData);
+          } else {
+            // Create new visit
+            const newRef = doc(collection(db, RINK_VISITS_COLLECTION));
+            batch.set(newRef, visitData);
+            visit.id = newRef.id;
+          }
+          
+          savedVisits.push(visit);
+        }
+        
+        // Commit the batch
+        await batch.commit();
+        console.log(`✅ Batch saved ${entities.length} visits`);
+        
+        return savedVisits;
+      },
+      "Error saving visits in batch",
+      []
+    );
+  }
+  
+  /**
    * Delete a visit by its ID
    * @param id The visit ID
    * @returns A promise that resolves to true if the visit was deleted, false otherwise
@@ -425,6 +566,35 @@ export class FirestoreRinkVisitRepository implements RinkVisitRepository {
         return true;
       },
       "Error deleting visit",
+      false
+    );
+  }
+  
+  /**
+   * Delete multiple visits by their IDs
+   * @param ids The visit IDs
+   * @returns A promise that resolves to true if all visits were deleted, false otherwise
+   */
+  async deleteAll(ids: string[]): Promise<boolean> {
+    if (!ids.length) return true;
+    
+    return this.executeQuery(
+      async () => {
+        const batch = await import("firebase/firestore").then(module => module.writeBatch(db));
+        
+        // Add delete operations to batch
+        for (const id of ids) {
+          const visitRef = doc(db, RINK_VISITS_COLLECTION, id);
+          batch.delete(visitRef);
+        }
+        
+        // Commit the batch
+        await batch.commit();
+        console.log(`✅ Batch deleted ${ids.length} visits`);
+        
+        return true;
+      },
+      "Error deleting visits in batch",
       false
     );
   }

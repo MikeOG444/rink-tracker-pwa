@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Rink } from '../../services/placesAPI';
-import { hasUserVisitedRink, getRinkVisitCount } from '../../services/firestore';
+import { rinkVisitRepository } from '../../domain/repositories';
 import {
   Box,
   Paper,
@@ -39,12 +39,14 @@ const RinkDetailsPanel = ({ rink, onClose }: RinkDetailsPanelProps) => {
       if (rink && user) {
         setLoading(true);
         try {
-          const visited = await hasUserVisitedRink(user.uid, rink.id);
+          // Use the rinkVisitRepository to check if the user has visited the rink
+          const visits = await rinkVisitRepository.findByUserIdAndRinkId(user.uid, rink.id);
+          const visited = visits.length > 0;
           setHasVisited(visited);
           
           if (visited) {
-            const count = await getRinkVisitCount(user.uid, rink.id);
-            setVisitCount(count);
+            // Use the visit count from the repository
+            setVisitCount(visits.length);
           }
         } catch (error) {
           console.error('Error checking visit status:', error);

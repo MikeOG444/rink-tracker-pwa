@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useMapCenter } from '../location/useMapCenter';
 import { defaultZoom } from '../../components/map/constants/mapConfig';
 
@@ -16,6 +16,9 @@ export const useMapCallbacks = ({
 }: UseMapCallbacksProps) => {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   
+  // Use a ref to track if we've already centered the map
+  const hasCenteredMap = useRef<boolean>(false);
+  
   // Create a local map center function that uses the current map
   const { centerMapOnLocation: centerMapOnLocationLocal } = useMapCenter({ 
     map, 
@@ -24,8 +27,9 @@ export const useMapCallbacks = ({
   
   // Update the map in useUserLocation when it changes
   useEffect(() => {
-    if (map && userLocation) {
+    if (map && userLocation && !hasCenteredMap.current) {
       centerMapOnLocationLocal(userLocation);
+      hasCenteredMap.current = true;
     }
   }, [map, userLocation, centerMapOnLocationLocal]);
   
@@ -40,6 +44,7 @@ export const useMapCallbacks = ({
     if (userLocation) {
       console.log('User location already available, centering map');
       centerMapOnLocationLocal(userLocation);
+      hasCenteredMap.current = true;
     } else {
       console.log('User location not available yet, requesting location');
       // Request user location
@@ -51,8 +56,9 @@ export const useMapCallbacks = ({
    * Callback when map is unmounted
    */
   const onUnmount = useCallback(() => {
-    console.log('Map unmounted');
+    console.log('Component unmounting');
     setMap(null);
+    hasCenteredMap.current = false;
   }, []);
 
   return {

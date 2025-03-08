@@ -107,17 +107,25 @@ export class UserRink {
    * Convert the user rink to a plain object for storage
    */
   toObject(): Record<string, any> {
-    return {
-      id: this.id,
+    const data: Record<string, any> = {
       userId: this.userId,
       rinkId: this.rinkId,
       isFavorite: this.isFavorite,
       visitCount: this.visitCount,
       lastVisitDate: this.lastVisitDate ? this.lastVisitDate.toISOString() : null,
-      notes: this.notes,
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString()
     };
+    
+    // Only include optional fields if they're defined
+    if (this.notes !== undefined) data.notes = this.notes;
+    
+    // Only include id if it's defined
+    if (this.id) {
+      data.id = this.id;
+    }
+    
+    return data;
   }
 
   /**

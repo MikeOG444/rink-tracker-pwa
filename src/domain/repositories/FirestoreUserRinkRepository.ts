@@ -9,10 +9,13 @@ import {
   deleteDoc, 
   getDoc, 
   setDoc, 
-  increment 
+  increment,
+  limit,
+  orderBy
 } from "firebase/firestore";
 import { UserRink } from "../models/UserRink";
 import { UserRinkRepository } from "./UserRinkRepository";
+import { PaginationOptions, Page } from "./Repository";
 import type { Rink } from "../../services/places";
 
 const USER_RINKS_COLLECTION = "user_rinks";
@@ -44,6 +47,28 @@ export class FirestoreUserRinkRepository implements UserRinkRepository {
   }
   
   /**
+   * Find multiple user rinks by their IDs
+   * @param ids The user rink IDs
+   * @returns A promise that resolves to an array of user rinks
+   */
+  async findByIds(ids: string[]): Promise<UserRink[]> {
+    if (!ids.length) return [];
+    
+    try {
+      // Firestore doesn't support a direct "in" query for document IDs
+      // So we need to fetch each document individually
+      const fetchPromises = ids.map(id => this.findById(id));
+      const userRinks = await Promise.all(fetchPromises);
+      
+      // Filter out null results
+      return userRinks.filter((userRink): userRink is UserRink => userRink !== null);
+    } catch (error) {
+      console.error("❌ Error finding user rinks by IDs:", error);
+      return [];
+    }
+  }
+  
+  /**
    * Find all user rinks
    * @returns A promise that resolves to an array of user rinks
    */
@@ -58,6 +83,80 @@ export class FirestoreUserRinkRepository implements UserRinkRepository {
     } catch (error) {
       console.error("❌ Error finding all user rinks:", error);
       return [];
+    }
+  }
+  
+  /**
+   * Find all user rinks with pagination
+   * @param options The pagination options
+   * @returns A promise that resolves to a page of user rinks
+   */
+  async findAllPaginated(options: PaginationOptions): Promise<Page<UserRink>> {
+    try {
+      const { page, pageSize } = options;
+      
+      // First, get the total count of user rinks
+      const countQuery = query(collection(db, USER_RINKS_COLLECTION));
+      const countSnapshot = await getDocs(countQuery);
+      const totalItems = countSnapshot.size;
+      
+      // Calculate total pages
+      const totalPages = Math.ceil(totalItems / pageSize);
+      
+      // Then, get the paginated user rinks
+      const q = query(
+        collection(db, USER_RINKS_COLLECTION),
+        orderBy("updatedAt", "desc"),
+        limit(pageSize)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      const userRinks = snapshot.docs.map(doc => 
+        UserRink.fromFirestore(doc.id, doc.data())
+      );
+      
+      // Fetch rink data for each user rink
+      for (const userRink of userRinks) {
+        const rinkRef = doc(db, RINKS_COLLECTION, userRink.rinkId);
+        const rinkDoc = await getDoc(rinkRef);
+        
+        if (rinkDoc.exists()) {
+          const rinkData = rinkDoc.data();
+          userRink.rinkData = {
+            id: rinkData.id,
+            name: rinkData.name,
+            address: rinkData.address,
+            position: rinkData.position,
+            photo: rinkData.photo,
+            rating: rinkData.rating
+          };
+        }
+      }
+      
+      // Create the pagination result
+      const result: Page<UserRink> = {
+        items: userRinks,
+        totalItems,
+        currentPage: page,
+        pageSize,
+        totalPages,
+        hasPrevious: page > 1,
+        hasNext: page < totalPages
+      };
+      
+      return result;
+    } catch (error) {
+      console.error("❌ Error finding paginated user rinks:", error);
+      return {
+        items: [],
+        totalItems: 0,
+        currentPage: options.page,
+        pageSize: options.pageSize,
+        totalPages: 0,
+        hasPrevious: false,
+        hasNext: false
+      };
     }
   }
   
@@ -258,6 +357,70 @@ export class FirestoreUserRinkRepository implements UserRinkRepository {
   }
   
   /**
+   * Save multiple user rinks in a batch operation
+   * @param entities The user rinks to save
+   * @returns A promise that resolves to the saved user rinks
+   */
+  async saveAll(entities: UserRink[]): Promise<UserRink[]> {
+    if (!entities.length) return [];
+    
+    try {
+      const batch = await import("firebase/firestore").then(module => module.writeBatch(db));
+      const savedUserRinks: UserRink[] = [];
+      
+      // Process each user rink
+      for (const userRink of entities) {
+        const userRinkId = userRink.id || `${userRink.userId}_${userRink.rinkId}`;
+        const userRinkRef = doc(db, USER_RINKS_COLLECTION, userRinkId);
+        
+        // Save the rink data if provided
+        if (userRink.rinkData) {
+          const rinkRef = doc(db, RINKS_COLLECTION, userRink.rinkId);
+          const rinkDoc = await getDoc(rinkRef);
+          
+          const rinkData = {
+            id: userRink.rinkId,
+            name: userRink.rinkData.name,
+            address: userRink.rinkData.address,
+            position: userRink.rinkData.position,
+            photo: userRink.rinkData.photo,
+            rating: userRink.rinkData.rating,
+            updatedAt: new Date().toISOString()
+          };
+          
+          if (!rinkDoc.exists()) {
+            // Save basic rink info to the global rinks collection
+            await setDoc(rinkRef, {
+              ...rinkData,
+              createdAt: new Date().toISOString()
+            });
+          } else {
+            // Update the rink info in case anything has changed
+            await updateDoc(rinkRef, rinkData);
+          }
+        }
+        
+        // Add user rink to batch
+        const userRinkData = userRink.toObject();
+        batch.set(userRinkRef, userRinkData, { merge: true });
+        
+        // Update ID and add to result
+        userRink.id = userRinkId;
+        savedUserRinks.push(userRink);
+      }
+      
+      // Commit the batch
+      await batch.commit();
+      console.log(`✅ Batch saved ${entities.length} user rinks`);
+      
+      return savedUserRinks;
+    } catch (error) {
+      console.error("❌ Error saving user rinks in batch:", error);
+      throw error;
+    }
+  }
+  
+  /**
    * Delete a user rink by its ID
    * @param id The user rink ID
    * @returns A promise that resolves to true if the user rink was deleted, false otherwise
@@ -270,6 +433,34 @@ export class FirestoreUserRinkRepository implements UserRinkRepository {
       return true;
     } catch (error) {
       console.error("❌ Error deleting user rink:", error);
+      return false;
+    }
+  }
+  
+  /**
+   * Delete multiple user rinks by their IDs
+   * @param ids The user rink IDs
+   * @returns A promise that resolves to true if all user rinks were deleted, false otherwise
+   */
+  async deleteAll(ids: string[]): Promise<boolean> {
+    if (!ids.length) return true;
+    
+    try {
+      const batch = await import("firebase/firestore").then(module => module.writeBatch(db));
+      
+      // Add delete operations to batch
+      for (const id of ids) {
+        const userRinkRef = doc(db, USER_RINKS_COLLECTION, id);
+        batch.delete(userRinkRef);
+      }
+      
+      // Commit the batch
+      await batch.commit();
+      console.log(`✅ Batch deleted ${ids.length} user rinks`);
+      
+      return true;
+    } catch (error) {
+      console.error("❌ Error deleting user rinks in batch:", error);
       return false;
     }
   }

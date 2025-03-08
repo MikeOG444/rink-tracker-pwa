@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { 
   TextField, 
   InputAdornment, 
@@ -24,6 +24,21 @@ const SearchInput: React.FC<SearchInputProps> = ({
   handleSearchChange,
   handleClearSearch
 }) => {
+  // Create a ref for the input element
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus the input when the component mounts
+  useEffect(() => {
+    // Small delay to ensure the input is rendered
+    const timer = setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <TextField
       fullWidth
@@ -31,6 +46,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
       value={searchQuery}
       onChange={handleSearchChange}
       disabled={isSearching}
+      inputRef={inputRef}
       InputProps={{
         startAdornment: (
           <InputAdornment position="start">

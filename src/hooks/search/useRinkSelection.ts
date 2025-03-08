@@ -31,11 +31,13 @@ export const useRinkSelection = ({
       
       // Get detailed information about the rink
       try {
+        console.log('🔍 Getting details for rink:', rink.id);
         const detailedRink = await getRinkDetails(rink.id, map);
+        console.log('✅ Got details for rink:', rink.name);
         setDetailedRink(detailedRink);
         setShowRinkDetails(true);
       } catch (error) {
-        console.error('Error getting rink details:', error);
+        console.error('❌ Error getting rink details:', error);
         // Still show the details panel with the basic info we have
         setDetailedRink(rink);
         setShowRinkDetails(true);

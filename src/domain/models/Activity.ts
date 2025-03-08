@@ -107,18 +107,26 @@ export class Activity {
    * Convert the activity to a plain object for storage
    */
   toObject(): Record<string, any> {
-    return {
-      id: this.id,
+    const data: Record<string, any> = {
       userId: this.userId,
       rinkId: this.rinkId,
       type: this.type,
       date: this.date.toISOString(),
       duration: this.duration,
-      notes: this.notes,
-      rating: this.rating,
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString()
     };
+    
+    // Only include optional fields if they're defined
+    if (this.notes !== undefined) data.notes = this.notes;
+    if (this.rating !== undefined) data.rating = this.rating;
+    
+    // Only include id if it's defined
+    if (this.id) {
+      data.id = this.id;
+    }
+    
+    return data;
   }
 
   /**

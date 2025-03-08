@@ -15,7 +15,16 @@ const dbPromise = openDB(DB_NAME, 1, {
 // Add activity to IndexedDB
 export const saveActivityOffline = async (activity: any) => {
   const db = await dbPromise;
-  await db.add(STORE_NAME, activity);
+  
+  // Make sure we don't include an undefined id field
+  // This is important because IndexedDB will use autoIncrement
+  // to generate a unique id for the activity
+  const activityToSave = { ...activity };
+  if (activityToSave.id === undefined) {
+    delete activityToSave.id;
+  }
+  
+  await db.add(STORE_NAME, activityToSave);
 };
 
 // Get all offline activities

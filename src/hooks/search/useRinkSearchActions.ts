@@ -30,17 +30,21 @@ export const useRinkSearchActions = ({
     if (!map || !query.trim()) {
       setSearchResults([]);
       setShowSearchResults(false);
-      return;
+      return Promise.resolve();
     }
     
-    console.log('Searching for rinks with query:', query);
+    console.log('🔍 Searching for rinks with query:', query);
     setSearchState(SearchState.SEARCHING);
     setNoResults(false);
     setShowSearchResults(true);
     
     try {
+      // Add a small delay to prevent rapid consecutive searches
+      // This helps with the "Maximum update depth exceeded" error
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       const results = await searchRinksByName(query, map);
-      console.log('Search results:', results.length);
+      console.log('✅ Found', results.length, 'results for query:', query);
       
       if (results.length === 0) {
         setNoResults(true);
@@ -48,13 +52,15 @@ export const useRinkSearchActions = ({
       
       setSearchResults(results);
       setSearchState(SearchState.SUCCESS);
+      return Promise.resolve();
     } catch (error) {
-      console.error('Error searching for rinks:', error);
+      console.error('❌ Error searching for rinks:', error);
       setError({
         message: 'Error searching for rinks. Please try again.',
         originalError: error
       });
       setSearchState(SearchState.ERROR);
+      return Promise.reject(error);
     }
   }, [map, setSearchResults, setSearchState, setError, setNoResults, setShowSearchResults]);
   
@@ -69,13 +75,13 @@ export const useRinkSearchActions = ({
       return;
     }
     
-    console.log('Finding rinks in current map view');
+    console.log('🔍 Finding rinks in current map view');
     setSearchState(SearchState.SEARCHING);
     setShowSearchResults(false); // Don't show dropdown for map view search
     
     try {
       const results = await findRinksInMapBounds(map);
-      console.log('Map view results:', results.length);
+      console.log('✅ Found', results.length, 'rinks in current map view');
       
       // Don't show results in dropdown, just add markers to the map
       setSearchResults(results);
@@ -88,7 +94,7 @@ export const useRinkSearchActions = ({
       
       setSearchState(SearchState.SUCCESS);
     } catch (error) {
-      console.error('Error finding rinks in map view:', error);
+      console.error('❌ Error finding rinks in map view:', error);
       setError({
         message: 'Error finding rinks. Please try again.',
         originalError: error

@@ -35,12 +35,12 @@ enum ActivityType {
  */
 export function getActivityTypeLabel(activityType: ActivityType): string {
   const labels: Record<ActivityType, string> = {
-    [ActivityType.RECREATIONAL_SKATING]: 'Recreational Skating',
+    [ActivityType.RECREATIONAL_SKATING]: 'Open Skate',
     [ActivityType.PUBLIC_SKATING]: 'Public Skating',
-    [ActivityType.HOCKEY_PRACTICE]: 'Hockey Practice',
-    [ActivityType.HOCKEY_GAME]: 'Hockey Game',
+    [ActivityType.HOCKEY_PRACTICE]: 'Practice',
+    [ActivityType.HOCKEY_GAME]: 'Game',
     [ActivityType.HOCKEY_TOURNAMENT]: 'Hockey Tournament',
-    [ActivityType.HOCKEY_CLINIC]: 'Hockey Clinic',
+    [ActivityType.HOCKEY_CLINIC]: 'Skills Session',
     [ActivityType.STICK_AND_PUCK]: 'Stick and Puck',
     [ActivityType.DROP_IN_HOCKEY]: 'Drop-in Hockey',
     [ActivityType.FIGURE_SKATING_PRACTICE]: 'Figure Skating Practice',

@@ -1,14 +1,13 @@
 import { useEffect } from 'react';
-import { useJsApiLoader } from '@react-google-maps/api';
 import { Box } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
+import { useGoogleMaps } from '../../context/GoogleMapsContext';
 import RinkDetailsPanel from '../../components/map/RinkDetailsPanel';
 
 // Import custom hooks
 import { useUserLocation } from '../../hooks/useUserLocation';
 import { useRinkSearch } from '../../hooks/useRinkSearch';
 import { useVisitedRinks, useMapCallbacks } from '../../hooks/map';
-import { libraries } from '../map/constants/mapConfig';
 
 // Import components
 import SearchBar from '../map/components/SearchBar';
@@ -21,12 +20,8 @@ const MapPage = () => {
   console.log('MapPage rendering');
   const { user } = useAuth();
   
-  // Load the Google Maps JavaScript API with Places library
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries
-  });
+  // Use the Google Maps context
+  const { isLoaded } = useGoogleMaps();
 
   // Use custom hooks
   const { visitedRinks } = useVisitedRinks(user?.uid || null);
