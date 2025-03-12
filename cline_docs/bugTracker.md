@@ -61,3 +61,62 @@ body {
 **Notes:**
 - The authentication flow is working correctly - the map is accessible to non-logged-in users
 - The "Log Activity" button in the rink details panel correctly redirects to the auth page when clicked by a non-logged-in user
+
+## Bug #2: Geolocation Error Banner Showing Incorrectly
+
+**Date Reported:** March 11, 2025
+
+**Environment:** Production (https://rink-tracker-3620e.web.app)
+
+**Description:**  
+The alert banner "Location Access Issue: Geolocation is not supported by this browser" appears when first navigating to the /map page but disappears on reload, even though location permissions have been enabled.
+
+**Expected Behavior:**  
+The error banner should not appear if the browser supports geolocation and the user has granted permission.
+
+**Actual Behavior:**  
+The error banner appears on initial page load but disappears when the page is reloaded.
+
+**Root Cause:**  
+The issue is in the `useGeolocationSupport` hook. This hook checks if geolocation is supported by the browser using `navigator.geolocation`, but it doesn't properly account for the asynchronous nature of browser permission states. When the page first loads, the browser might not have initialized the geolocation API fully, causing the hook to incorrectly report that geolocation is not supported.
+
+**Steps to Reproduce:**
+1. Visit https://rink-tracker-3620e.web.app/map
+2. Observe the error banner "Location Access Issue: Geolocation is not supported by this browser"
+3. Reload the page
+4. Observe that the error banner disappears
+
+**Fix:**
+1. Modify the `useGeolocationSupport` hook to add a small delay before checking geolocation support:
+```typescript
+useEffect(() => {
+  // Add a small delay to allow browser to initialize
+  const timer = setTimeout(() => {
+    // Check if geolocation is supported
+    if (!navigator.geolocation) {
+      console.error('Geolocation is not supported by this browser');
+      setError({
+        message: 'Geolocation is not supported by this browser'
+      });
+      setIsSupported(false);
+    } else {
+      setIsSupported(true);
+      setError(null);
+    }
+  }, 500); // 500ms delay
+  
+  return () => clearTimeout(timer);
+}, []);
+```
+
+**Status:** Fixed
+
+**Priority:** Medium - This affects user experience but doesn't prevent core functionality
+
+**Implementation:**
+1. Modified `src/hooks/location/useGeolocationSupport.ts` to add a 500ms delay before checking geolocation support
+2. Added cleanup function to clear the timeout when the component unmounts
+
+**Notes:**
+- This issue was more noticeable in certain browsers and environments
+- The delay allows the browser to fully initialize the geolocation API before checking if it's supported

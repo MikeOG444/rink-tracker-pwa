@@ -10,17 +10,22 @@ export const useGeolocationSupport = () => {
   const [error, setError] = useState<LocationError | null>(null);
 
   useEffect(() => {
-    // Check if geolocation is supported
-    if (!navigator.geolocation) {
-      console.error('Geolocation is not supported by this browser');
-      setError({
-        message: 'Geolocation is not supported by this browser'
-      });
-      setIsSupported(false);
-    } else {
-      setIsSupported(true);
-      setError(null);
-    }
+    // Add a small delay to allow browser to initialize
+    const timer = setTimeout(() => {
+      // Check if geolocation is supported
+      if (!navigator.geolocation) {
+        console.error('Geolocation is not supported by this browser');
+        setError({
+          message: 'Geolocation is not supported by this browser'
+        });
+        setIsSupported(false);
+      } else {
+        setIsSupported(true);
+        setError(null);
+      }
+    }, 500); // 500ms delay
+    
+    return () => clearTimeout(timer);
   }, []);
 
   return { isSupported, error };
