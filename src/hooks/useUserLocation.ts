@@ -5,6 +5,8 @@ import { useBrowserGeolocation } from './location/useBrowserGeolocation';
 import { useMapCenter } from './location/useMapCenter';
 import { useTestLocation } from './location/useTestLocation';
 import { useTimeout } from './location/useTimeout';
+import { LocationPreferences } from '../services/location/LocationPreferences';
+// Removed unused import
 
 interface UseUserLocationProps {
   map?: google.maps.Map | null;
@@ -90,10 +92,18 @@ export const useUserLocation = ({
       setError({ message: 'Geolocation is not supported by this browser' });
       setLocationState(LocationState.ERROR);
       
-      // Fall back to default location
-      console.log('Falling back to default location');
-      setUserLocation(defaultCenter);
-      centerMapOnLocation(defaultCenter);
+      // Try to use saved default location first
+      const savedLocation = LocationPreferences.getDefaultLocation();
+      if (savedLocation) {
+        console.log('Using saved default location:', savedLocation);
+        setUserLocation(savedLocation);
+        centerMapOnLocation(savedLocation);
+      } else {
+        // Fall back to hardcoded default location
+        console.log('No saved location, falling back to default location');
+        setUserLocation(defaultCenter);
+        centerMapOnLocation(defaultCenter);
+      }
       return;
     }
     
@@ -148,6 +158,26 @@ export const useUserLocation = ({
     };
   }, [browserGeolocation, clearTimeout]);
 
+  /**
+   * Save the current location as the default
+   */
+  const saveAsDefaultLocation = useCallback(() => {
+    if (userLocation) {
+      LocationPreferences.saveDefaultLocation(userLocation);
+      return true;
+    }
+    return false;
+  }, [userLocation]);
+
+  /**
+   * Set a manual location
+   */
+  const setManualLocation = useCallback((location: google.maps.LatLngLiteral) => {
+    setUserLocation(location);
+    centerMapOnLocation(location);
+    setLocationState(LocationState.SUCCESS);
+  }, [centerMapOnLocation]);
+
   return {
     userLocation,
     isLocating: locationState === LocationState.LOCATING,
@@ -156,6 +186,8 @@ export const useUserLocation = ({
     centerMapOnLocation,
     handleMyLocationClick,
     defaultCenter,
-    locationState
+    locationState,
+    saveAsDefaultLocation,
+    setManualLocation
   };
 };

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Box } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import { useGoogleMaps } from '../../context/GoogleMapsContext';
@@ -13,12 +13,15 @@ import { useVisitedRinks, useMapCallbacks } from '../../hooks/map';
 import SearchBar from '../map/components/SearchBar';
 import MapControls from '../map/components/MapControls';
 import ErrorDisplay from '../map/components/ErrorDisplay';
+import GeolocationErrorDisplay from '../map/components/GeolocationErrorDisplay';
 import LoadingScreen from '../map/components/LoadingScreen';
 import MapContainer from '../map/components/MapContainer';
+import ManualLocationSelector from '../location/ManualLocationSelector';
 
 const MapPage = () => {
   console.log('MapPage rendering');
   const { user } = useAuth();
+  const [showManualLocationSelector, setShowManualLocationSelector] = useState(false);
   
   // Use the Google Maps context
   const { isLoaded } = useGoogleMaps();
@@ -32,7 +35,8 @@ const MapPage = () => {
     error: locationError, 
     getUserLocation, 
     handleMyLocationClick,
-    defaultCenter
+    defaultCenter,
+    setManualLocation
   } = useUserLocation({ map: null });
 
   const { map, onLoad, onUnmount } = useMapCallbacks({
@@ -60,7 +64,7 @@ const MapPage = () => {
   } = useRinkSearch({ map });
 
   // Combine errors from both hooks
-  const error = locationError || searchError;
+  // const error = locationError || searchError; // Unused variable
 
   // Request user location when component mounts
   useEffect(() => {
@@ -121,12 +125,34 @@ const MapPage = () => {
         isSearching={isSearching}
         handleMyLocationClick={handleMyLocationClick}
         findRinksInView={findRinksInView}
+        setManualLocation={setManualLocation}
       />
       
-      {/* Error Display Component */}
+      {/* Location Error Display Component */}
+      {locationError && (
+        <Box sx={{ position: 'absolute', top: 80, left: 10, right: 10, zIndex: 1000 }}>
+          <GeolocationErrorDisplay
+            error={locationError}
+            onManualLocationClick={() => setShowManualLocationSelector(true)}
+          />
+        </Box>
+      )}
+      
+      {/* General Error Display Component */}
       <ErrorDisplay
-        error={error}
+        error={searchError}
         handleErrorClose={handleErrorClose}
+      />
+      
+      {/* Manual Location Selector */}
+      <ManualLocationSelector
+        open={showManualLocationSelector}
+        onClose={() => setShowManualLocationSelector(false)}
+        onLocationSelected={(location) => {
+          setManualLocation(location);
+          setShowManualLocationSelector(false);
+        }}
+        map={map}
       />
     </Box>
   );
