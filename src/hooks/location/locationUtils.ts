@@ -1,13 +1,7 @@
-// Default center (will be replaced with user's location)
+// Default center (will be used as fallback if geolocation fails)
 export const defaultCenter = {
   lat: 43.6532, // Toronto
   lng: -79.3832
-};
-
-// For testing purposes - hardcoded location
-export const userActualLocation = {
-  lat: 41.584,
-  lng: -73.8087
 };
 
 // Location state types

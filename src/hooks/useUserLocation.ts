@@ -3,22 +3,19 @@ import { LocationState, LocationError, defaultCenter, areLocationsSignificantlyD
 import { useGeolocationSupport } from './location/useGeolocationSupport';
 import { useBrowserGeolocation } from './location/useBrowserGeolocation';
 import { useMapCenter } from './location/useMapCenter';
-import { useTestLocation } from './location/useTestLocation';
 import { useTimeout } from './location/useTimeout';
 import { LocationPreferences } from '../services/location/LocationPreferences';
 import { logger } from '../services/logging';
 
 interface UseUserLocationProps {
   map?: google.maps.Map | null;
-  useTestLocationInDev?: boolean;
 }
 
 /**
  * Hook to handle user location detection and map centering
  */
 export const useUserLocation = ({ 
-  map = null, 
-  useTestLocationInDev = true 
+  map = null
 }: UseUserLocationProps = {}) => {
   // State
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
@@ -30,7 +27,6 @@ export const useUserLocation = ({
   
   // Custom hooks
   const { isSupported: isGeolocationSupported } = useGeolocationSupport();
-  const { getTestLocation } = useTestLocation({ useHardcodedLocation: useTestLocationInDev });
   const { centerMapOnLocation } = useMapCenter({ map });
   const { setTimeout, clearTimeout } = useTimeout();
   
@@ -138,21 +134,7 @@ export const useUserLocation = ({
       // This helps in cases where the hook's state might be out of sync
       if (navigator.geolocation) {
         console.log('Navigator.geolocation is actually available, proceeding with location request');
-        
-        // For testing/development, use the hardcoded location
-        if (useTestLocationInDev) {
-          const testLoc = getTestLocation();
-          setUserLocation(testLoc);
-          centerMapOnLocation(testLoc);
-          setLocationState(LocationState.SUCCESS);
-          
-          // Also try the geolocation API as a backup/verification
-          browserGeolocation.requestLocation();
-        } else {
-          // In production or when test location is disabled, use browser geolocation
-          browserGeolocation.requestLocation();
-        }
-        
+        browserGeolocation.requestLocation();
         return;
       }
       
@@ -167,7 +149,7 @@ export const useUserLocation = ({
         setUserLocation(savedLocation);
         centerMapOnLocation(savedLocation);
       } else {
-        // Fall back to hardcoded default location
+        // Fall back to default location
         console.log('No saved location, falling back to default location');
         setUserLocation(defaultCenter);
         centerMapOnLocation(defaultCenter);
@@ -175,25 +157,12 @@ export const useUserLocation = ({
       return;
     }
     
-    // For testing/development, use the hardcoded location
-    if (useTestLocationInDev) {
-      const testLoc = getTestLocation();
-      setUserLocation(testLoc);
-      centerMapOnLocation(testLoc);
-      setLocationState(LocationState.SUCCESS);
-      
-      // Also try the geolocation API as a backup/verification
-      browserGeolocation.requestLocation();
-    } else {
-      // In production or when test location is disabled, use browser geolocation
-      browserGeolocation.requestLocation();
-    }
+    // Use browser geolocation
+    browserGeolocation.requestLocation();
   }, [
     locationState, 
     clearTimeout, 
     isGeolocationSupported, 
-    useTestLocationInDev, 
-    getTestLocation, 
     centerMapOnLocation, 
     browserGeolocation
   ]);
