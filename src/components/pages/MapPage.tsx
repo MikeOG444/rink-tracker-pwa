@@ -125,7 +125,7 @@ const MapPage = () => {
         isSearching={isSearching}
         handleMyLocationClick={handleMyLocationClick}
         findRinksInView={findRinksInView}
-        setManualLocation={setManualLocation}
+        setManualLocation={locationError ? undefined : setManualLocation}
       />
       
       {/* Location Error Display Component */}

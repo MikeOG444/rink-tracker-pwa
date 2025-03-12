@@ -62,61 +62,64 @@ body {
 - The authentication flow is working correctly - the map is accessible to non-logged-in users
 - The "Log Activity" button in the rink details panel correctly redirects to the auth page when clicked by a non-logged-in user
 
-## Bug #2: Geolocation Error Banner Showing Incorrectly
+## Bug #2: Geolocation Error Banner and Duplicate "Set Location Manually" Buttons
 
-**Date Reported:** March 11, 2025
+**Date Reported:** March 12, 2025
 
 **Environment:** Production (https://rink-tracker-3620e.web.app)
 
 **Description:**  
-The alert banner "Location Access Issue: Geolocation is not supported by this browser" appears when first navigating to the /map page but disappears on reload, even though location permissions have been enabled.
+When navigating to the map page, the error banner "Location Access Issue: Geolocation is not supported by this browser" appears even when geolocation is supported and permissions are granted. Additionally, there are two "Set Location Manually" buttons visible simultaneously.
 
 **Expected Behavior:**  
-The error banner should not appear if the browser supports geolocation and the user has granted permission.
+1. The error banner should only appear if geolocation is truly not supported or if the user has denied permission.
+2. There should only be one "Set Location Manually" button visible at a time.
 
 **Actual Behavior:**  
-The error banner appears on initial page load but disappears when the page is reloaded.
+1. The error banner appears on initial page load but disappears when the page is reloaded.
+2. Two "Set Location Manually" buttons are visible: one in the error banner and another in the map controls.
 
 **Root Cause:**  
-The issue is in the `useGeolocationSupport` hook. This hook checks if geolocation is supported by the browser using `navigator.geolocation`, but it doesn't properly account for the asynchronous nature of browser permission states. When the page first loads, the browser might not have initialized the geolocation API fully, causing the hook to incorrectly report that geolocation is not supported.
+1. Race condition in geolocation detection:
+   - The `useGeolocationSupport` hook was checking for geolocation support too early, before the browser fully initialized.
+   - Once the error state was set, it wasn't being properly cleared when geolocation became available.
+2. The "Set Location Manually" button in the map controls was always being rendered, regardless of whether the error banner (which also has a "Set Location Manually" button) was visible.
 
 **Steps to Reproduce:**
 1. Visit https://rink-tracker-3620e.web.app/map
 2. Observe the error banner "Location Access Issue: Geolocation is not supported by this browser"
-3. Reload the page
-4. Observe that the error banner disappears
+3. Observe two "Set Location Manually" buttons: one in the error banner and another in the map controls
+4. Reload the page and observe that the error banner disappears
 
 **Fix:**
-1. Modify the `useGeolocationSupport` hook to add a small delay before checking geolocation support:
-```typescript
-useEffect(() => {
-  // Add a small delay to allow browser to initialize
-  const timer = setTimeout(() => {
-    // Check if geolocation is supported
-    if (!navigator.geolocation) {
-      console.error('Geolocation is not supported by this browser');
-      setError({
-        message: 'Geolocation is not supported by this browser'
-      });
-      setIsSupported(false);
-    } else {
-      setIsSupported(true);
-      setError(null);
-    }
-  }, 500); // 500ms delay
-  
-  return () => clearTimeout(timer);
-}, []);
-```
+1. Improve the geolocation support detection:
+   - Increase the initial delay in `useGeolocationSupport` from 500ms to 1000ms
+   - Add a retry mechanism with increasing delays
+   - Add proper logging for debugging
+2. Enhance error handling in `useUserLocation`:
+   - Add a retry mechanism for geolocation requests
+   - Clear error state when geolocation becomes available
+   - Add a double-check for geolocation support
+3. Fix the duplicate UI elements:
+   - Conditionally render the "Set Location Manually" button in `MapControls` only when there's no error
 
 **Status:** Fixed
 
 **Priority:** Medium - This affects user experience but doesn't prevent core functionality
 
 **Implementation:**
-1. Modified `src/hooks/location/useGeolocationSupport.ts` to add a 500ms delay before checking geolocation support
-2. Added cleanup function to clear the timeout when the component unmounts
+1. Modified `src/hooks/location/useGeolocationSupport.ts`:
+   - Increased initial delay to 1000ms
+   - Added retry mechanism with up to 3 attempts
+   - Added proper error logging
+2. Modified `src/hooks/useUserLocation.ts`:
+   - Added retry mechanism for geolocation requests
+   - Added error state clearing when geolocation becomes available
+   - Added double-check for geolocation support
+3. Modified `src/components/pages/MapPage.tsx`:
+   - Conditionally passed `setManualLocation` to `MapControls` only when there's no error
 
 **Notes:**
 - This issue was more noticeable in certain browsers and environments
-- The delay allows the browser to fully initialize the geolocation API before checking if it's supported
+- The fix ensures a more robust geolocation detection process
+- The UI now correctly shows only one "Set Location Manually" button at a time

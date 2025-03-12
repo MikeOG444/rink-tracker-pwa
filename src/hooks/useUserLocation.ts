@@ -6,7 +6,7 @@ import { useMapCenter } from './location/useMapCenter';
 import { useTestLocation } from './location/useTestLocation';
 import { useTimeout } from './location/useTimeout';
 import { LocationPreferences } from '../services/location/LocationPreferences';
-// Removed unused import
+import { logger } from '../services/logging';
 
 interface UseUserLocationProps {
   map?: google.maps.Map | null;
@@ -34,6 +34,10 @@ export const useUserLocation = ({
   const { centerMapOnLocation } = useMapCenter({ map });
   const { setTimeout, clearTimeout } = useTimeout();
   
+  // Ref to track retry attempts
+  const retryAttemptsRef = useRef(0);
+  const maxRetryAttempts = 3;
+  
   // Browser geolocation hook
   const browserGeolocation = useBrowserGeolocation({
     onSuccess: (position) => {
@@ -46,23 +50,60 @@ export const useUserLocation = ({
       
       console.log('Got browser location:', browserPos.lat, browserPos.lng);
       
+      // Clear any error state since we successfully got the location
+      if (error) {
+        console.log('Clearing previous geolocation error');
+        setError(null);
+      }
+      
+      // Reset retry counter on success
+      retryAttemptsRef.current = 0;
+      
       // Only update if we don't have a location yet or if it's significantly different
       if (!userLocation || areLocationsSignificantlyDifferent(browserPos, userLocation)) {
         console.log('Browser location is different, updating');
         setUserLocation(browserPos);
         centerMapOnLocation(browserPos);
       }
+      
+      // Update location state to success
+      setLocationState(LocationState.SUCCESS);
     },
     onError: (error) => {
       console.error('Geolocation error:', error.code, error.message);
-      // If we already have a test location, we can ignore this error
-      if (!userLocation) {
-        setError({
-          code: error.code,
-          message: error.message
-        });
-        setLocationState(LocationState.ERROR);
+      
+      // If we already have a location, we can ignore this error
+      if (userLocation) {
+        console.log('Already have a location, ignoring geolocation error');
+        return;
       }
+      
+      // Check if we should retry
+      if (retryAttemptsRef.current < maxRetryAttempts) {
+        retryAttemptsRef.current++;
+        console.log(`Retrying geolocation (attempt ${retryAttemptsRef.current} of ${maxRetryAttempts})...`);
+        
+        // Add a delay before retrying
+        setTimeout(() => {
+          if (isMounted.current) {
+            browserGeolocation.requestLocation();
+          }
+        }, 1000); // 1 second delay between retries
+        
+        return;
+      }
+      
+      // Max retries reached, set error state
+      logger.warning('Geolocation failed after max retry attempts', 'useUserLocation', { 
+        errorCode: error.code, 
+        errorMessage: error.message 
+      });
+      
+      setError({
+        code: error.code,
+        message: error.message
+      });
+      setLocationState(LocationState.ERROR);
     }
   });
   
@@ -76,6 +117,9 @@ export const useUserLocation = ({
     // Clear any existing timeout
     clearTimeout();
     
+    // Reset retry counter
+    retryAttemptsRef.current = 0;
+    
     // If already locating, don't do anything
     if (locationState === LocationState.LOCATING) {
       console.log('Already locating, skipping request');
@@ -88,7 +132,31 @@ export const useUserLocation = ({
     
     // Check if geolocation is supported
     if (!isGeolocationSupported) {
-      console.error('Geolocation is not supported by this browser');
+      console.log('Geolocation is not supported by this browser');
+      
+      // Double-check by trying to access navigator.geolocation directly
+      // This helps in cases where the hook's state might be out of sync
+      if (navigator.geolocation) {
+        console.log('Navigator.geolocation is actually available, proceeding with location request');
+        
+        // For testing/development, use the hardcoded location
+        if (useTestLocationInDev) {
+          const testLoc = getTestLocation();
+          setUserLocation(testLoc);
+          centerMapOnLocation(testLoc);
+          setLocationState(LocationState.SUCCESS);
+          
+          // Also try the geolocation API as a backup/verification
+          browserGeolocation.requestLocation();
+        } else {
+          // In production or when test location is disabled, use browser geolocation
+          browserGeolocation.requestLocation();
+        }
+        
+        return;
+      }
+      
+      // If we get here, geolocation is truly not supported
       setError({ message: 'Geolocation is not supported by this browser' });
       setLocationState(LocationState.ERROR);
       
@@ -139,7 +207,10 @@ export const useUserLocation = ({
     
     // Force a new location request
     setLocationState(LocationState.IDLE);
-    setUserLocation(null); // Clear current location to force a new request
+    setError(null); // Clear any existing error
+    
+    // We don't clear userLocation here to avoid map jumping
+    // Only clear it if we successfully get a new location
     
     // Add a small delay to ensure state is updated before calling getUserLocation
     setTimeout(() => {
@@ -176,7 +247,12 @@ export const useUserLocation = ({
     setUserLocation(location);
     centerMapOnLocation(location);
     setLocationState(LocationState.SUCCESS);
-  }, [centerMapOnLocation]);
+    
+    // Clear any error state since we now have a valid location
+    if (error) {
+      setError(null);
+    }
+  }, [centerMapOnLocation, error]);
 
   return {
     userLocation,
