@@ -8,7 +8,7 @@ import ManualLocationSelector from '../../location/ManualLocationSelector';
 interface MapControlsProps {
   isLocating: boolean;
   isSearching: boolean;
-  handleMyLocationClick: () => void;
+  onLocationUpdate: () => void;
   findRinksInView: () => void;
   setManualLocation?: (location: google.maps.LatLngLiteral) => void;
 }
@@ -16,7 +16,7 @@ interface MapControlsProps {
 const MapControls: React.FC<MapControlsProps> = ({
   isLocating,
   isSearching,
-  handleMyLocationClick,
+  onLocationUpdate,
   findRinksInView,
   setManualLocation
 }) => {
@@ -44,7 +44,7 @@ const MapControls: React.FC<MapControlsProps> = ({
         >
           <IconButton
             color="default"
-            onClick={handleMyLocationClick}
+            onClick={onLocationUpdate}
             disabled={isLocating}
             sx={{ 
               backgroundColor: 'white',

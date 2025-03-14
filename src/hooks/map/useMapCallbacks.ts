@@ -25,11 +25,26 @@ export const useMapCallbacks = ({
     defaultZoom 
   });
   
-  // Update the map in useUserLocation when it changes
+  // Track the last centered location to avoid unnecessary re-centering
+  const lastCenteredLocation = useRef<google.maps.LatLngLiteral | null>(null);
+  
+  // Update the map when location changes significantly
   useEffect(() => {
-    if (map && userLocation && !hasCenteredMap.current) {
-      centerMapOnLocationLocal(userLocation);
-      hasCenteredMap.current = true;
+    if (map && userLocation) {
+      // Check if this is a new location or significantly different from last centered
+      const isNewLocation = !lastCenteredLocation.current;
+      const isSignificantChange = isNewLocation || 
+        (lastCenteredLocation.current && (
+          Math.abs(userLocation.lat - lastCenteredLocation.current.lat) > 0.001 || 
+          Math.abs(userLocation.lng - lastCenteredLocation.current.lng) > 0.001
+        ));
+      
+      if (isSignificantChange) {
+        console.log('Centering map on updated location:', userLocation.lat, userLocation.lng);
+        centerMapOnLocationLocal(userLocation);
+        lastCenteredLocation.current = {...userLocation};
+        hasCenteredMap.current = true;
+      }
     }
   }, [map, userLocation, centerMapOnLocationLocal]);
   

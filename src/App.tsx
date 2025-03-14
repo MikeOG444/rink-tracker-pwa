@@ -12,8 +12,19 @@ import ActionHandler from "./components/auth/ActionHandler";
 import NavBar from "./components/layout/NavBar.tsx";
 import { GoogleMapsProvider } from "./context/GoogleMapsContext";
 import OnboardingFlow from "./components/onboarding/OnboardingFlow";
+import { useEffect } from "react";
+import { geolocationService } from "./services/location/GeolocationService";
 
 const App = () => {
+  // Initialize geolocation service early in the app lifecycle
+  useEffect(() => {
+    // Start fetching location as soon as the app loads
+    console.log('App mounted, initializing geolocation service');
+    geolocationService.getCurrentLocation().catch(error => {
+      console.error('Error initializing geolocation service:', error);
+    });
+  }, []);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline /> {/* ✅ Applies global resets */}

@@ -1,19 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Box } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import { useGoogleMaps } from '../../context/GoogleMapsContext';
 import RinkDetailsPanel from '../../components/map/RinkDetailsPanel';
+import { geolocationService } from '../../services/location/GeolocationService';
 
 // Import custom hooks
-import { useUserLocation } from '../../hooks/useUserLocation';
 import { useRinkSearch } from '../../hooks/useRinkSearch';
-import { useVisitedRinks, useMapCallbacks } from '../../hooks/map';
+import { useVisitedRinks } from '../../hooks/map';
 
 // Import components
 import SearchBar from '../map/components/SearchBar';
 import MapControls from '../map/components/MapControls';
 import ErrorDisplay from '../map/components/ErrorDisplay';
-import GeolocationErrorDisplay from '../map/components/GeolocationErrorDisplay';
 import LoadingScreen from '../map/components/LoadingScreen';
 import MapContainer from '../map/components/MapContainer';
 import ManualLocationSelector from '../location/ManualLocationSelector';
@@ -26,24 +25,103 @@ const MapPage = () => {
   // Use the Google Maps context
   const { isLoaded } = useGoogleMaps();
 
+  // State for location
+  const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  
   // Use custom hooks
   const { visitedRinks } = useVisitedRinks(user?.uid || null);
 
-  const { 
-    userLocation, 
-    isLocating, 
-    error: locationError, 
-    getUserLocation, 
-    handleMyLocationClick,
-    defaultCenter,
-    setManualLocation
-  } = useUserLocation({ map: null });
+  // Initialize location from GeolocationService
+  useEffect(() => {
+    // Subscribe to location updates
+    const unsubscribe = geolocationService.subscribe(result => {
+      setIsLocating(geolocationService.isCurrentlyLocating());
+      
+      if (result.location) {
+        setUserLocation(result.location);
+        setLocationError(null);
+      } else if (result.error) {
+        setLocationError(result.error.message);
+      }
+    });
+    
+    // Get initial location (from cache if available)
+    setIsLocating(true);
+    geolocationService.getCurrentLocation().then(() => {
+      setIsLocating(false);
+    });
+    
+    return unsubscribe;
+  }, []);
 
-  const { map, onLoad, onUnmount } = useMapCallbacks({
-    userLocation,
-    getUserLocation
-  });
+  // Center map when location changes
+  useEffect(() => {
+    if (map && userLocation) {
+      console.log('Centering map on location:', userLocation);
+      map.panTo(userLocation);
+      map.setZoom(14); // Or whatever zoom level is appropriate
+    }
+  }, [map, userLocation]);
 
+  // Handle "My Location" button click
+  const handleMyLocationClick = useCallback(async () => {
+    console.log('My Location button clicked');
+    
+    // Force a fresh geolocation request
+    setIsLocating(true);
+    try {
+      const result = await geolocationService.getCurrentLocation(true);
+      if (result.location) {
+        setUserLocation(result.location);
+        setLocationError(null);
+        
+        // Center map on the new location
+        if (map) {
+          map.panTo(result.location);
+          map.setZoom(14);
+        }
+      } else if (result.error) {
+        setLocationError(result.error.message);
+      }
+    } catch (error) {
+      console.error('Error getting location:', error);
+    } finally {
+      setIsLocating(false);
+    }
+  }, [map]);
+
+  // Handle manual location setting
+  const handleSetManualLocation = useCallback((location: google.maps.LatLngLiteral) => {
+    geolocationService.setManualLocation(location);
+    setShowManualLocationSelector(false);
+  }, []);
+
+  // Map callbacks
+  const handleMapLoad = useCallback((map: google.maps.Map) => {
+    console.log('Map loaded');
+    setMap(map);
+    
+    // If we already have a location, center the map on it
+    if (userLocation) {
+      console.log('Centering map on initial location');
+      map.panTo(userLocation);
+      map.setZoom(14);
+    } else {
+      // Use default location until we get the actual location
+      const defaultLocation = geolocationService.getDefaultLocation();
+      map.panTo(defaultLocation);
+    }
+  }, [userLocation]);
+
+  const handleMapUnmount = useCallback(() => {
+    console.log('Map unmounting');
+    setMap(null);
+  }, []);
+
+  // Use the rink search hook
   const {
     searchQuery,
     searchResults,
@@ -63,21 +141,13 @@ const MapPage = () => {
     findRinksInView
   } = useRinkSearch({ map });
 
-  // Combine errors from both hooks
-  // const error = locationError || searchError; // Unused variable
-
-  // Request user location when component mounts
-  useEffect(() => {
-    if (isLoaded && !userLocation && !isLocating) {
-      console.log('Component mounted, requesting user location');
-      getUserLocation();
-    }
-  }, [isLoaded, userLocation, isLocating, getUserLocation]);
-
   // Show loading screen if Maps API is not loaded yet
   if (!isLoaded) {
-    return <LoadingScreen />;
+    return <LoadingScreen message="Loading Maps API..." />;
   }
+
+  // Get the best available location (user location or default)
+  const mapCenter = userLocation || geolocationService.getDefaultLocation();
 
   console.log('Rendering map with userLocation:', userLocation ? 
     `{lat: ${userLocation.lat}, lng: ${userLocation.lng}}` : 'null', 
@@ -101,13 +171,13 @@ const MapPage = () => {
       
       {/* Map Container Component */}
       <MapContainer
-        center={userLocation || defaultCenter}
+        center={mapCenter}
         userLocation={userLocation}
         searchResults={searchResults}
         selectedRink={selectedRink}
         visitedRinks={visitedRinks}
-        onLoad={onLoad}
-        onUnmount={onUnmount}
+        onLoad={handleMapLoad}
+        onUnmount={handleMapUnmount}
         handleMarkerClick={handleMarkerClick}
       />
       
@@ -123,35 +193,25 @@ const MapPage = () => {
       <MapControls
         isLocating={isLocating}
         isSearching={isSearching}
-        handleMyLocationClick={handleMyLocationClick}
+        onLocationUpdate={handleMyLocationClick}
         findRinksInView={findRinksInView}
-        setManualLocation={locationError ? undefined : setManualLocation}
+        setManualLocation={locationError ? undefined : () => setShowManualLocationSelector(true)}
       />
       
-      {/* Location Error Display Component */}
-      {locationError && (
-        <Box sx={{ position: 'absolute', top: 80, left: 10, right: 10, zIndex: 1000 }}>
-          <GeolocationErrorDisplay
-            error={locationError}
-            onManualLocationClick={() => setShowManualLocationSelector(true)}
-          />
-        </Box>
-      )}
-      
-      {/* General Error Display Component */}
+      {/* Error Display Component */}
       <ErrorDisplay
-        error={searchError}
-        handleErrorClose={handleErrorClose}
+        error={searchError || locationError}
+        handleErrorClose={() => {
+          if (searchError) handleErrorClose();
+          if (locationError) setLocationError(null);
+        }}
       />
       
       {/* Manual Location Selector */}
       <ManualLocationSelector
         open={showManualLocationSelector}
         onClose={() => setShowManualLocationSelector(false)}
-        onLocationSelected={(location) => {
-          setManualLocation(location);
-          setShowManualLocationSelector(false);
-        }}
+        onLocationSelected={handleSetManualLocation}
         map={map}
       />
     </Box>

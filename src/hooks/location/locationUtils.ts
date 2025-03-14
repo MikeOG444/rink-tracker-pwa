@@ -26,8 +26,8 @@ export interface LocationOptions {
 // Default geolocation options
 export const defaultLocationOptions: LocationOptions = {
   enableHighAccuracy: true,
-  timeout: 10000,
-  maximumAge: 0
+  timeout: 15000,  // Increased timeout to 15 seconds
+  maximumAge: 60000 // Allow cached positions up to 1 minute old
 };
 
 // Utility function to check if two locations are significantly different
