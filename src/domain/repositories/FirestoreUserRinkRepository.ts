@@ -274,6 +274,30 @@ export class FirestoreUserRinkRepository implements UserRinkRepository {
   }
   
   /**
+   * Check if a user has a verified visit at a rink
+   * @param userId The user ID
+   * @param rinkId The rink ID
+   * @returns A promise that resolves to true if the user has a verified visit at the rink, false otherwise
+   */
+  async hasUserVerifiedVisit(userId: string, rinkId: string): Promise<boolean> {
+    try {
+      const userRinkId = `${userId}_${rinkId}`;
+      const userRinkRef = doc(db, USER_RINKS_COLLECTION, userRinkId);
+      const userRinkDoc = await getDoc(userRinkRef);
+      
+      if (!userRinkDoc.exists()) {
+        return false;
+      }
+      
+      const data = userRinkDoc.data();
+      return data.hasVerifiedVisit === true;
+    } catch (error) {
+      console.error("❌ Error checking if user has verified visit at rink:", error);
+      return false;
+    }
+  }
+  
+  /**
    * Get the visit count for a rink
    * @param userId The user ID
    * @param rinkId The rink ID
@@ -470,9 +494,10 @@ export class FirestoreUserRinkRepository implements UserRinkRepository {
    * @param userId The user ID
    * @param rinkId The rink ID
    * @param rink Optional rink data
+   * @param isVerified Whether this visit is verified (user is at the rink)
    * @returns A promise that resolves to the updated user rink
    */
-  async incrementVisitCount(userId: string, rinkId: string, rink?: Rink): Promise<UserRink> {
+  async incrementVisitCount(userId: string, rinkId: string, rink?: Rink, isVerified: boolean = false): Promise<UserRink> {
     try {
       const userRinkId = `${userId}_${rinkId}`;
       const userRinkRef = doc(db, USER_RINKS_COLLECTION, userRinkId);
@@ -484,16 +509,35 @@ export class FirestoreUserRinkRepository implements UserRinkRepository {
         // First visit to this rink
         const userRink = UserRink.create(userId, rinkId, rink);
         userRink.incrementVisitCount(now);
+        
+        // If this is a verified visit, mark it as such
+        if (isVerified) {
+          userRink.markAsVerified();
+          console.log("✅ First visit to rink is verified!");
+        }
+        
         await this.save(userRink);
         console.log("✅ First visit to rink recorded for user");
         return userRink;
       } else {
-        // Update visit count and last visit date
-        await updateDoc(userRinkRef, {
+        // Get existing user rink data
+        const userRinkData = userRinkDoc.data();
+        
+        // Prepare update data
+        const updateData: Record<string, any> = {
           visitCount: increment(1),
           lastVisitDate: now.toISOString(),
           updatedAt: now.toISOString()
-        });
+        };
+        
+        // If this is a verified visit and the user doesn't already have a verified visit, mark it
+        if (isVerified && !userRinkData.hasVerifiedVisit) {
+          updateData.hasVerifiedVisit = true;
+          console.log("✅ Visit is verified!");
+        }
+        
+        // Update the user rink
+        await updateDoc(userRinkRef, updateData);
         console.log("✅ Visit count updated for rink");
         
         // Get the updated user rink

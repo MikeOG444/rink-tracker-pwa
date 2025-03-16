@@ -5,7 +5,8 @@ import { updateProfile } from "firebase/auth";
 import {
   Container, Typography, TextField, Select, MenuItem,
   Card, CardContent, Avatar, Box, List, IconButton, Button,
-  Dialog, DialogTitle, DialogContent, DialogActions
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Snackbar, Alert
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -15,6 +16,8 @@ import { Activity } from "../../domain/models/Activity";
 import ActivityType, { getActivityTypeLabel } from "../../domain/models/ActivityType";
 import RinkSelectionModal from "./RinkSelectionModal";
 import { Rink } from "../../services/places";
+import { geolocationService } from "../../services/location/GeolocationService";
+import { isWithinDistance } from "../../utils/geoUtils";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -36,6 +39,11 @@ const Dashboard = () => {
   const [filterType, setFilterType] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [rinkPreSelected, setRinkPreSelected] = useState(false);
+  
+  // State for snackbar notifications
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "info" | "warning" | "error">("success");
 
   // Listen for network changes
   useEffect(() => {
@@ -214,11 +222,29 @@ const Dashboard = () => {
       // Save the activity
       await activityRepository.save(activity);
       
-      // Also increment the visit count for this rink in the user's profile
+      // Check if the user is at the rink (within 500 feet)
+      const userLocationResult = await geolocationService.getCurrentLocation(true); // Force fresh location
+      const isVerified = isWithinDistance(
+        userLocationResult.location,
+        selectedRink.position,
+        500 // 500 feet threshold
+      );
+      
+      console.log(`📍 User is ${isVerified ? 'at' : 'not at'} the rink. Visit verification: ${isVerified ? 'VERIFIED' : 'NOT VERIFIED'}`);
+      
+      // Increment the visit count for this rink in the user's profile
       // We can safely use ! here because we've already validated that selectedRink is not null
-      if (selectedRink) {
-        await userRinkRepository.incrementVisitCount(user.uid, selectedRink.id, selectedRink);
+      await userRinkRepository.incrementVisitCount(user.uid, selectedRink.id, selectedRink, isVerified);
+      
+      // Show verification status to user
+      if (isVerified) {
+        setSnackbarMessage("Activity logged with verified location! ✅");
+        setSnackbarSeverity("success");
+      } else {
+        setSnackbarMessage("Activity logged successfully");
+        setSnackbarSeverity("info");
       }
+      setSnackbarOpen(true);
       
       // Reset form
       setActivityType("");
@@ -231,6 +257,9 @@ const Dashboard = () => {
       console.log("🎉 Activity successfully logged!");
     } catch (error) {
       console.error("🔥 Error logging activity:", error);
+      setSnackbarMessage("Error logging activity");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
     }
   };
 
@@ -720,6 +749,23 @@ const Dashboard = () => {
         onClose={() => setIsRinkModalOpen(false)}
         onSelectRink={handleSelectRink}
       />
+      
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbarOpen(false)} 
+          severity={snackbarSeverity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

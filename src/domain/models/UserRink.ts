@@ -11,6 +11,7 @@ export interface UserRinkData {
   isFavorite: boolean;
   visitCount: number;
   lastVisitDate?: Date | string | null;
+  hasVerifiedVisit?: boolean;
   notes?: string;
   createdAt?: Date | string;
   updatedAt?: Date | string;
@@ -27,6 +28,7 @@ export class UserRink {
   isFavorite: boolean;
   visitCount: number;
   lastVisitDate: Date | null;
+  hasVerifiedVisit: boolean;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -44,6 +46,7 @@ export class UserRink {
     this.lastVisitDate = data.lastVisitDate 
       ? (typeof data.lastVisitDate === 'string' ? new Date(data.lastVisitDate) : data.lastVisitDate)
       : null;
+    this.hasVerifiedVisit = data.hasVerifiedVisit || false;
     this.notes = data.notes;
     this.createdAt = typeof data.createdAt === 'string' ? new Date(data.createdAt) : (data.createdAt || new Date());
     this.updatedAt = typeof data.updatedAt === 'string' ? new Date(data.updatedAt) : (data.updatedAt || new Date());
@@ -104,6 +107,14 @@ export class UserRink {
   }
 
   /**
+   * Mark this rink as having a verified visit
+   */
+  markAsVerified(): void {
+    this.hasVerifiedVisit = true;
+    this.updatedAt = new Date();
+  }
+
+  /**
    * Convert the user rink to a plain object for storage
    */
   toObject(): Record<string, any> {
@@ -113,6 +124,7 @@ export class UserRink {
       isFavorite: this.isFavorite,
       visitCount: this.visitCount,
       lastVisitDate: this.lastVisitDate ? this.lastVisitDate.toISOString() : null,
+      hasVerifiedVisit: this.hasVerifiedVisit,
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString()
     };
@@ -139,6 +151,7 @@ export class UserRink {
       isFavorite: data.isFavorite || false,
       visitCount: data.visitCount || 0,
       lastVisitDate: data.lastVisitDate?.toDate ? data.lastVisitDate.toDate() : data.lastVisitDate,
+      hasVerifiedVisit: data.hasVerifiedVisit || false,
       notes: data.notes,
       createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
       updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt || Date.now())
@@ -158,6 +171,7 @@ export class UserRink {
       isFavorite: false,
       visitCount: 0,
       lastVisitDate: null,
+      hasVerifiedVisit: false,
       createdAt: now,
       updatedAt: now
     });

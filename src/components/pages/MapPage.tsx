@@ -32,7 +32,7 @@ const MapPage = () => {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   
   // Use custom hooks
-  const { visitedRinks } = useVisitedRinks(user?.uid || null);
+  const { visitedRinks, verifiedRinks } = useVisitedRinks(user?.uid || null);
 
   // Initialize location from GeolocationService
   useEffect(() => {
@@ -164,6 +164,7 @@ const MapPage = () => {
         noResults={noResults}
         selectedRink={selectedRink}
         visitedRinks={visitedRinks}
+        verifiedRinks={verifiedRinks}
         handleSearchChange={handleSearchChange}
         handleClearSearch={handleClearSearch}
         handleRinkSelect={handleRinkSelect}
@@ -176,6 +177,7 @@ const MapPage = () => {
         searchResults={searchResults}
         selectedRink={selectedRink}
         visitedRinks={visitedRinks}
+        verifiedRinks={verifiedRinks}
         onLoad={handleMapLoad}
         onUnmount={handleMapUnmount}
         handleMarkerClick={handleMarkerClick}

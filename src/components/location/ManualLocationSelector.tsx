@@ -164,8 +164,13 @@ const ManualLocationSelector: React.FC<ManualLocationSelectorProps> = ({
   // Clean up the DOM element when the component unmounts
   React.useEffect(() => {
     return () => {
-      if (placesServiceElementRef.current) {
-        document.body.removeChild(placesServiceElementRef.current);
+      if (placesServiceElementRef.current && document.body.contains(placesServiceElementRef.current)) {
+        try {
+          document.body.removeChild(placesServiceElementRef.current);
+        } catch (error) {
+          // Log the error but don't throw it
+          logger.error('Error removing places service element', 'ManualLocationSelector', error);
+        }
       }
     };
   }, []);

@@ -30,6 +30,14 @@ export interface UserRinkRepository extends Repository<UserRink, string> {
   hasUserVisitedRink(userId: string, rinkId: string): Promise<boolean>;
   
   /**
+   * Check if a user has a verified visit at a rink
+   * @param userId The user ID
+   * @param rinkId The rink ID
+   * @returns A promise that resolves to true if the user has a verified visit at the rink, false otherwise
+   */
+  hasUserVerifiedVisit(userId: string, rinkId: string): Promise<boolean>;
+  
+  /**
    * Get the visit count for a rink
    * @param userId The user ID
    * @param rinkId The rink ID
@@ -42,9 +50,10 @@ export interface UserRinkRepository extends Repository<UserRink, string> {
    * @param userId The user ID
    * @param rinkId The rink ID
    * @param rink Optional rink data
+   * @param isVerified Whether this visit is verified (user is at the rink)
    * @returns A promise that resolves to the updated user rink
    */
-  incrementVisitCount(userId: string, rinkId: string, rink?: Rink): Promise<UserRink>;
+  incrementVisitCount(userId: string, rinkId: string, rink?: Rink, isVerified?: boolean): Promise<UserRink>;
   
   /**
    * Toggle the favorite status for a rink

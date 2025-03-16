@@ -68,13 +68,13 @@ Rink Tracker is more than just an activity log—it's a hockey community hub tha
 ## **🔑 Key Features**  
 
 ### **👤 User Authentication & Account Management**  
-- [ ] **Sign up, login, and password reset**  
-- [ ] **Google sign-in support**  
-- [ ] **Email verification process before dashboard access**  
+- [x] **Sign up, login, and password reset**  
+- [x] **Google sign-in support**  
+- [x] **Email verification process before dashboard access**  
 - [ ] **User profile customization** (name, avatar, team, etc.)  
 
 ### **📍 Interactive Map & Rink Search**  
-- [ ] **Search for rinks by name or location**  
+- [x] **Search for rinks by name or location**  
 - [ ] **Display rink markers on the map** (visited, not visited, verified, etc.)  
 - [ ] **Show rink details panel** (name, location, images, activity stats, etc.)  
 - [ ] **Allow users to mark a rink as visited manually**  
@@ -136,6 +136,7 @@ Rink Tracker is more than just an activity log—it's a hockey community hub tha
 - [x] **Activity logging system prototype**  
 - [x] **Basic offline support with IndexedDB**  
 - [x] **Technical Debt Refactoring - Phase 1**: Refactored complex hooks and components
+- [x] **Technical Debt Refactoring - Phase 2**: Implemented repository pattern and improved code quality
 - [x] **Domain Model Implementation**: Created core domain models with validation and factory methods
 - [x] **Repository Pattern Implementation**: Implemented repository pattern for domain models with Firestore integration
 - [x] **Code Quality Improvements**: Eliminated code duplication, enhanced error handling, and improved type safety

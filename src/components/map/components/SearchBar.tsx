@@ -14,6 +14,7 @@ interface SearchBarProps {
   noResults: boolean;
   selectedRink: Rink | null;
   visitedRinks: Set<string>;
+  verifiedRinks?: Set<string>;
   handleSearchChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleClearSearch: () => void;
   handleRinkSelect: (rink: Rink) => void;
@@ -30,6 +31,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   noResults,
   selectedRink,
   visitedRinks,
+  verifiedRinks,
   handleSearchChange,
   handleClearSearch,
   handleRinkSelect
@@ -59,6 +61,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
             searchResults={searchResults}
             selectedRink={selectedRink}
             visitedRinks={visitedRinks}
+            verifiedRinks={verifiedRinks}
             handleRinkSelect={handleRinkSelect}
           />
         )}
