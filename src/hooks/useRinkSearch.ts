@@ -105,7 +105,7 @@ export const useRinkSearch = ({ map }: UseRinkSearchProps) => {
   const handleClearSearch = useCallback(() => {
     console.log('Clear search clicked');
     searchState.resetSearch();
-    searchState.resetSelection();
+    // Removed resetSelection() call to keep the location card open when clearing search
     setIsSearching(false);
     latestQueryRef.current = '';
   }, [searchState]);
