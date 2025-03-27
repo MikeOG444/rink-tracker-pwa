@@ -55,4 +55,4 @@ Example:
 
 | Version | Date | Deployed By | Notes |
 |---------|------|-------------|-------|
-| 1.0.0 | 2025-03-27 | [Your Name] | Initial deployment to prevent database lockout |
+| 1.0.0 | 2025-03-27 | Mike O'Gara | Initial deployment to prevent database lockout |
