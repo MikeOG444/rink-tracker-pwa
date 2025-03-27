@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Activities collection
+    match /activities/{activityId} {
+      // Users can read/write only their own activities
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isOwner(resource.data.userId);
+    }
+    
+    // Rinks collection (global data)
+    match /rinks/{rinkId} {
+      // Anyone can read rink data
+      allow read: if true;
+      // Only authenticated users can create/update rinks
+      allow create, update: if isSignedIn();
+      // No one can delete rinks (admin-only operation)
+      allow delete: if false;
+    }
+    
+    // User-Rink relationships
+    match /user_rinks/{userRinkId} {
+      // Users can only read/write their own user_rink documents
+      // The document ID format is "{userId}_{rinkId}"
+      allow create: if isSignedIn() && 
+                     userRinkId.split('_')[0] == request.auth.uid &&
+                     request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isSignedIn() && 
+                                   resource.data.userId == request.auth.uid;
+    }
+    
+    // Rink visits
+    match /rink_visits/{visitId} {
+      // Users can create visits for themselves
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      
+      // Users can read/update/delete their own visits
+      allow read, update, delete: if isOwner(resource.data.userId);
+      
+      // Public visits can be read by anyone
+      allow read: if resource.data.isPublic == true;
+    }
+  }
+}
