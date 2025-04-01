@@ -1,4 +1,8 @@
-const firebase = require('@firebase/rules-unit-testing');
+const { 
+  initializeTestEnvironment, 
+  assertSucceeds, 
+  assertFails 
+} = require('@firebase/rules-unit-testing');
 const fs = require('fs');
 const path = require('path');
 
@@ -7,44 +11,43 @@ const path = require('path');
  */
 const PROJECT_ID = 'firestore-rules-test';
 
+let testEnv;
+
 /**
  * Creates a new app with authentication data.
  */
 function getAuthedApp(auth) {
-  return firebase.initializeTestApp({
-    projectId: PROJECT_ID,
-    auth
-  }).firestore();
+  return testEnv.authenticatedContext(auth.uid).firestore();
 }
 
 /**
  * Creates a new admin app.
  */
 function getAdminApp() {
-  return firebase.initializeAdminApp({
-    projectId: PROJECT_ID
-  }).firestore();
+  return testEnv.adminContext().firestore();
 }
 
 beforeAll(async () => {
   // Load the rules file
   const rules = fs.readFileSync(path.resolve(__dirname, '../firestore.rules'), 'utf8');
   
-  // Deploy rules to the emulator
-  await firebase.loadFirestoreRules({
+  // Initialize the test environment
+  testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
-    rules
+    firestore: {
+      rules
+    }
   });
 });
 
 beforeEach(async () => {
   // Clear the database between tests
-  await firebase.clearFirestoreData({ projectId: PROJECT_ID });
+  await testEnv.clearFirestore();
 });
 
 afterAll(async () => {
-  // Delete all apps
-  await Promise.all(firebase.apps().map(app => app.delete()));
+  // Delete the test environment
+  await testEnv.cleanup();
 });
 
 describe('Firestore Security Rules', () => {
@@ -65,7 +68,7 @@ describe('Firestore Security Rules', () => {
         updatedAt: new Date()
       };
       
-      await firebase.assertSucceeds(
+      await assertSucceeds(
         db.collection('activities').add(activityData)
       );
     });
@@ -82,7 +85,7 @@ describe('Firestore Security Rules', () => {
         updatedAt: new Date()
       };
       
-      await firebase.assertFails(
+      await assertFails(
         db.collection('activities').add(activityData)
       );
     });
@@ -102,7 +105,7 @@ describe('Firestore Security Rules', () => {
       
       // Test reading as the owner
       const db = getAuthedApp({ uid: userId });
-      await firebase.assertSucceeds(
+      await assertSucceeds(
         db.collection('activities').doc(activityRef.id).get()
       );
     });
@@ -122,7 +125,7 @@ describe('Firestore Security Rules', () => {
       
       // Test reading as another user
       const db = getAuthedApp({ uid: otherUserId });
-      await firebase.assertFails(
+      await assertFails(
         db.collection('activities').doc(activityRef.id).get()
       );
     });
@@ -142,11 +145,9 @@ describe('Firestore Security Rules', () => {
       });
       
       // Test reading as an unauthenticated user
-      const db = firebase.initializeTestApp({
-        projectId: PROJECT_ID
-      }).firestore();
+      const db = testEnv.unauthenticatedContext().firestore();
       
-      await firebase.assertSucceeds(
+      await assertSucceeds(
         db.collection('rinks').doc(rinkId).get()
       );
     });
@@ -162,15 +163,13 @@ describe('Firestore Security Rules', () => {
         updatedAt: new Date()
       };
       
-      await firebase.assertSucceeds(
+      await assertSucceeds(
         db.collection('rinks').doc('new-rink').set(rinkData)
       );
     });
     
     it('prevents unauthenticated users from creating rinks', async () => {
-      const db = firebase.initializeTestApp({
-        projectId: PROJECT_ID
-      }).firestore();
+      const db = testEnv.unauthenticatedContext().firestore();
       
       const rinkData = {
         id: 'new-rink',
@@ -181,7 +180,7 @@ describe('Firestore Security Rules', () => {
         updatedAt: new Date()
       };
       
-      await firebase.assertFails(
+      await assertFails(
         db.collection('rinks').doc('new-rink').set(rinkData)
       );
     });
@@ -203,7 +202,7 @@ describe('Firestore Security Rules', () => {
         updatedAt: new Date()
       };
       
-      await firebase.assertSucceeds(
+      await assertSucceeds(
         db.collection('user_rinks').doc(userRinkId).set(userRinkData)
       );
     });
@@ -220,7 +219,7 @@ describe('Firestore Security Rules', () => {
         updatedAt: new Date()
       };
       
-      await firebase.assertFails(
+      await assertFails(
         db.collection('user_rinks').doc(otherUserRinkId).set(userRinkData)
       );
     });
@@ -240,7 +239,7 @@ describe('Firestore Security Rules', () => {
       
       // Test reading as the owner
       const db = getAuthedApp({ uid: userId });
-      await firebase.assertSucceeds(
+      await assertSucceeds(
         db.collection('user_rinks').doc(userRinkId).get()
       );
     });
@@ -260,7 +259,7 @@ describe('Firestore Security Rules', () => {
       
       // Test reading as another user
       const db = getAuthedApp({ uid: otherUserId });
-      await firebase.assertFails(
+      await assertFails(
         db.collection('user_rinks').doc(userRinkId).get()
       );
     });
@@ -279,7 +278,7 @@ describe('Firestore Security Rules', () => {
         updatedAt: new Date()
       };
       
-      await firebase.assertSucceeds(
+      await assertSucceeds(
         db.collection('rink_visits').add(visitData)
       );
     });
@@ -296,7 +295,7 @@ describe('Firestore Security Rules', () => {
         updatedAt: new Date()
       };
       
-      await firebase.assertFails(
+      await assertFails(
         db.collection('rink_visits').add(visitData)
       );
     });
@@ -316,7 +315,7 @@ describe('Firestore Security Rules', () => {
       
       // Test reading as the owner
       const db = getAuthedApp({ uid: userId });
-      await firebase.assertSucceeds(
+      await assertSucceeds(
         db.collection('rink_visits').doc(visitRef.id).get()
       );
     });
@@ -336,7 +335,7 @@ describe('Firestore Security Rules', () => {
       
       // Test reading as another user
       const db = getAuthedApp({ uid: otherUserId });
-      await firebase.assertFails(
+      await assertFails(
         db.collection('rink_visits').doc(visitRef.id).get()
       );
     });
@@ -356,7 +355,7 @@ describe('Firestore Security Rules', () => {
       
       // Test reading as another user
       const db = getAuthedApp({ uid: otherUserId });
-      await firebase.assertSucceeds(
+      await assertSucceeds(
         db.collection('rink_visits').doc(visitRef.id).get()
       );
     });
