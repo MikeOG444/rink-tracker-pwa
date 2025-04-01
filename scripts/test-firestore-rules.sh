@@ -18,24 +18,10 @@ if ! npm list @firebase/rules-unit-testing &> /dev/null; then
     npm install --save-dev @firebase/rules-unit-testing
 fi
 
-# Start the Firebase emulator in the background
-echo "Starting Firebase emulator..."
-firebase emulators:start --only firestore &
-EMULATOR_PID=$!
-
-# Give the emulator time to start
-sleep 5
-
-# Run the tests
-echo "Running Firestore rules tests..."
-npx jest tests/firestore-rules.test.js
+# Run the tests using firebase emulators:exec
+# This will automatically start the emulator, run the tests, and then stop the emulator
+echo "Starting Firebase emulator and running tests..."
+firebase emulators:exec --only firestore "npx jest tests/firestore-rules.test.js"
 
 # Capture the test result
-TEST_RESULT=$?
-
-# Kill the emulator
-echo "Stopping Firebase emulator..."
-kill $EMULATOR_PID
-
-# Return the test result
-exit $TEST_RESULT
+exit $?

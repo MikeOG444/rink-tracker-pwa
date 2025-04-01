@@ -32,10 +32,14 @@ beforeAll(async () => {
   const rules = fs.readFileSync(path.resolve(__dirname, '../firestore.rules'), 'utf8');
   
   // Initialize the test environment
+  // When running with firebase emulators:exec, the emulator details are automatically provided
   testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
     firestore: {
-      rules
+      rules,
+      // The host and port will be automatically detected when running with firebase emulators:exec
+      host: process.env.FIRESTORE_EMULATOR_HOST || 'localhost',
+      port: process.env.FIRESTORE_EMULATOR_PORT || 8080
     }
   });
 });
